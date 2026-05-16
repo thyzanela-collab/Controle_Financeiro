@@ -36,6 +36,7 @@ type AppContextType = AppData & {
   goalStreak: number;
   earningsPerHour: number;
   goalStatus: "danger" | "warning" | "good" | "great";
+  clearAllData: () => void;
   addRide: (r: Omit<Ride, "id" | "date" | "time">) => void;
   updateRide: (id: string, r: Partial<Omit<Ride, "id">>) => void;
   removeRide: (id: string) => void;
@@ -172,6 +173,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setData((prev) => ({ ...prev, driverName: name }));
   }, []);
 
+  const clearAllData = useCallback(() => {
+    setData((prev) => ({
+      ...defaultData,
+      dailyGoal: prev.dailyGoal,
+      driverName: prev.driverName,
+    }));
+  }, []);
+
   const today = todayStr();
   const todayRides = data.rides.filter((r) => r.date === today);
   const todayExpenseList = data.expenses.filter((e) => e.date === today);
@@ -237,6 +246,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         removeExpense,
         setDailyGoal,
         setDriverName,
+        clearAllData,
         earningsPerHour,
         goalStatus,
         goalStreak,

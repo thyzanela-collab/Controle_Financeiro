@@ -27,7 +27,7 @@ export default function ConfigScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const { driverName, dailyGoal, setDailyGoal, setDriverName, rides, expenses } = useApp();
+  const { driverName, dailyGoal, setDailyGoal, setDriverName, clearAllData, rides, expenses } = useApp();
 
   const [notifications, setNotifications] = useState(true);
   const [goalAlert, setGoalAlert] = useState(true);
@@ -70,10 +70,8 @@ export default function ConfigScreen() {
           text: "Apagar tudo",
           style: "destructive",
           onPress: () => {
-            Alert.alert(
-              "Funcionalidade reservada",
-              "Para apagar os dados, reinstale o aplicativo."
-            );
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            clearAllData();
           },
         },
       ]
