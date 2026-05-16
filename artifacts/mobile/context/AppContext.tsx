@@ -34,8 +34,10 @@ type AppData = {
 
 type AppContextType = AppData & {
   addRide: (r: Omit<Ride, "id" | "date" | "time">) => void;
+  updateRide: (id: string, r: Partial<Omit<Ride, "id">>) => void;
   removeRide: (id: string) => void;
   addExpense: (e: Omit<Expense, "id" | "date" | "time">) => void;
+  updateExpense: (id: string, e: Partial<Omit<Expense, "id">>) => void;
   removeExpense: (id: string) => void;
   setDailyGoal: (goal: number) => void;
   setDriverName: (name: string) => void;
@@ -121,6 +123,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const updateRide = useCallback((id: string, changes: Partial<Omit<Ride, "id">>) => {
+    setData((prev) => ({
+      ...prev,
+      rides: prev.rides.map((r) => (r.id === id ? { ...r, ...changes } : r)),
+    }));
+  }, []);
+
   const removeRide = useCallback((id: string) => {
     setData((prev) => ({ ...prev, rides: prev.rides.filter((r) => r.id !== id) }));
   }, []);
@@ -137,6 +146,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     },
     []
   );
+
+  const updateExpense = useCallback((id: string, changes: Partial<Omit<Expense, "id">>) => {
+    setData((prev) => ({
+      ...prev,
+      expenses: prev.expenses.map((e) => (e.id === id ? { ...e, ...changes } : e)),
+    }));
+  }, []);
 
   const removeExpense = useCallback((id: string) => {
     setData((prev) => ({
@@ -178,8 +194,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       value={{
         ...data,
         addRide,
+        updateRide,
         removeRide,
         addExpense,
+        updateExpense,
         removeExpense,
         setDailyGoal,
         setDriverName,

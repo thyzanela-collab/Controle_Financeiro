@@ -31,13 +31,17 @@ const CATEGORIES: { key: Expense["category"]; label: string; icon: string }[] = 
   { key: "other", label: "Outros", icon: "receipt-outline" },
 ];
 
+type FormMode = "add" | "edit";
+
 export default function GastosScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const { expenses, addExpense, removeExpense, todayExpenses, todayExpenseList } = useApp();
+  const { expenses, addExpense, updateExpense, removeExpense, todayExpenses, todayExpenseList } =
+    useApp();
 
-  const [showForm, setShowForm] = useState(false);
+  const [formMode, setFormMode] = useState<FormMode | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState<Expense["category"]>("fuel");
@@ -46,22 +50,46 @@ export default function GastosScreen() {
     .filter((e) => e.category === "fuel")
     .reduce((s, e) => s + e.amount, 0);
 
-  function handleAdd() {
+  function openAdd() {
+    setLabel("");
+    setAmount("");
+    setCategory("fuel");
+    setEditingId(null);
+    setFormMode("add");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }
+
+  function openEdit(exp: Expense) {
+    setLabel(exp.label);
+    setAmount(String(exp.amount));
+    setCategory(exp.category);
+    setEditingId(exp.id);
+    setFormMode("edit");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }
+
+  function closeForm() {
+    setFormMode(null);
+    setEditingId(null);
+  }
+
+  function handleSave() {
     const a = parseFloat(amount);
     if (!a || a <= 0) {
       Alert.alert("Valor inválido", "Informe o valor do gasto.");
       return;
     }
+    const finalLabel =
+      label.trim() || CATEGORIES.find((c) => c.key === category)!.label;
+
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    addExpense({
-      label: label.trim() || CATEGORIES.find((c) => c.key === category)!.label,
-      amount: a,
-      category,
-    });
-    setLabel("");
-    setAmount("");
-    setCategory("fuel");
-    setShowForm(false);
+
+    if (formMode === "edit" && editingId) {
+      updateExpense(editingId, { label: finalLabel, amount: a, category });
+    } else {
+      addExpense({ label: finalLabel, amount: a, category });
+    }
+    closeForm();
   }
 
   function handleRemove(id: string) {
@@ -73,6 +101,7 @@ export default function GastosScreen() {
         onPress: () => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
           removeExpense(id);
+          if (editingId === id) closeForm();
         },
       },
     ]);
@@ -93,6 +122,7 @@ export default function GastosScreen() {
       >
         <Text style={styles.pageTitle}>Gastos</Text>
 
+        {/* Summary card */}
         <View style={styles.totalCard}>
           <View style={styles.glowBg} />
           <Text style={styles.totalLabel}>Total Hoje</Text>
@@ -105,9 +135,17 @@ export default function GastosScreen() {
           )}
         </View>
 
-        {showForm ? (
+        {/* Form */}
+        {formMode ? (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Novo Gasto</Text>
+            <View style={styles.formTitleRow}>
+              <Text style={styles.cardTitle}>
+                {formMode === "edit" ? "Editar Gasto" : "Novo Gasto"}
+              </Text>
+              <Pressable onPress={closeForm} style={styles.closeBtn}>
+                <Ionicons name="close" size={20} color={MUTED} />
+              </Pressable>
+            </View>
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Categoria</Text>
@@ -159,50 +197,49 @@ export default function GastosScreen() {
                 keyboardType="decimal-pad"
                 placeholder="Ex: 80.00"
                 placeholderTextColor={MUTED}
+                autoFocus={formMode === "add"}
               />
             </View>
 
             <View style={styles.formActions}>
               <Pressable
-                style={({ pressed }) => [
-                  styles.cancelBtn,
-                  pressed && styles.pressed,
-                ]}
-                onPress={() => setShowForm(false)}
+                style={({ pressed }) => [styles.cancelBtn, pressed && styles.pressed]}
+                onPress={closeForm}
               >
                 <Text style={styles.cancelBtnText}>Cancelar</Text>
               </Pressable>
               <Pressable
-                style={({ pressed }) => [
-                  styles.saveBtn,
-                  pressed && styles.pressed,
-                ]}
-                onPress={handleAdd}
+                style={({ pressed }) => [styles.saveBtn, pressed && styles.pressed]}
+                onPress={handleSave}
               >
                 <Ionicons name="checkmark" size={18} color="#000" />
-                <Text style={styles.saveBtnText}>Salvar</Text>
+                <Text style={styles.saveBtnText}>
+                  {formMode === "edit" ? "Salvar alteração" : "Salvar"}
+                </Text>
               </Pressable>
             </View>
           </View>
         ) : (
           <Pressable
             style={({ pressed }) => [styles.addBtn, pressed && styles.pressed]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setShowForm(true);
-            }}
+            onPress={openAdd}
           >
             <Ionicons name="add-circle-outline" size={22} color="#000" />
             <Text style={styles.addBtnText}>Registrar novo gasto</Text>
           </Pressable>
         )}
 
+        {/* List */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Histórico</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{expenses.length}</Text>
-            </View>
+            <Text style={styles.cardTitle}>
+              {expenses.length > 0 ? "Gastos Registrados" : "Nenhum gasto ainda"}
+            </Text>
+            {expenses.length > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{expenses.length}</Text>
+              </View>
+            )}
           </View>
 
           {expenses.length === 0 ? (
@@ -216,14 +253,15 @@ export default function GastosScreen() {
           ) : (
             expenses.map((exp, idx) => {
               const cat = CATEGORIES.find((c) => c.key === exp.category);
+              const isEditing = editingId === exp.id;
               return (
-                <Pressable
+                <View
                   key={exp.id}
                   style={[
                     styles.expRow,
                     idx < expenses.length - 1 && styles.expBorder,
+                    isEditing && styles.expRowHighlight,
                   ]}
-                  onLongPress={() => handleRemove(exp.id)}
                 >
                   <View style={styles.expIcon}>
                     <Ionicons
@@ -239,12 +277,25 @@ export default function GastosScreen() {
                     </Text>
                   </View>
                   <Text style={styles.expAmount}>- R$ {exp.amount}</Text>
-                </Pressable>
+                  <View style={styles.expActions}>
+                    <Pressable
+                      style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+                      onPress={() => openEdit(exp)}
+                      hitSlop={8}
+                    >
+                      <Ionicons name="create-outline" size={18} color={YELLOW} />
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+                      onPress={() => handleRemove(exp.id)}
+                      hitSlop={8}
+                    >
+                      <Ionicons name="trash-outline" size={18} color={RED} />
+                    </Pressable>
+                  </View>
+                </View>
               );
             })
-          )}
-          {expenses.length > 0 && (
-            <Text style={styles.hint}>Segure para remover um gasto</Text>
           )}
         </View>
       </ScrollView>
@@ -254,173 +305,89 @@ export default function GastosScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, gap: 14 },
-  pageTitle: {
-    color: "#FFF",
-    fontSize: 28,
-    fontFamily: "Inter_700Bold",
-    marginBottom: 4,
-  },
+  pageTitle: { color: "#FFF", fontSize: 28, fontFamily: "Inter_700Bold", marginBottom: 4 },
 
   totalCard: {
-    backgroundColor: "#1A0A0A",
-    borderRadius: 32,
-    borderWidth: 1,
-    borderColor: RED_DIM,
-    padding: 24,
-    overflow: "hidden",
-    gap: 10,
+    backgroundColor: "#1A0A0A", borderRadius: 32,
+    borderWidth: 1, borderColor: RED_DIM,
+    padding: 24, overflow: "hidden", gap: 10,
   },
   glowBg: {
-    position: "absolute",
-    top: -30,
-    right: -30,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: RED_DIM,
+    position: "absolute", top: -30, right: -30,
+    width: 140, height: 140, borderRadius: 70, backgroundColor: RED_DIM,
   },
   totalLabel: { color: MUTED, fontSize: 13, fontFamily: "Inter_500Medium" },
-  totalAmount: {
-    color: RED,
-    fontSize: 48,
-    fontFamily: "Inter_700Bold",
-    letterSpacing: -1,
-  },
+  totalAmount: { color: RED, fontSize: 48, fontFamily: "Inter_700Bold", letterSpacing: -1 },
   chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: YELLOW_DIM,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    gap: 6,
-    alignSelf: "flex-start",
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: YELLOW_DIM, borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 5, gap: 6, alignSelf: "flex-start",
   },
   chipText: { color: YELLOW, fontSize: 12, fontFamily: "Inter_600SemiBold" },
 
   addBtn: {
-    backgroundColor: YELLOW,
-    borderRadius: 20,
-    paddingVertical: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+    backgroundColor: YELLOW, borderRadius: 20, paddingVertical: 16,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
   },
   addBtnText: { color: "#000", fontSize: 15, fontFamily: "Inter_700Bold" },
 
   card: {
-    backgroundColor: CARD,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: BORDER,
-    padding: 20,
-    gap: 14,
+    backgroundColor: CARD, borderRadius: 28,
+    borderWidth: 1, borderColor: BORDER, padding: 20, gap: 14,
   },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
+  formTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  closeBtn: { padding: 4 },
+  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   cardTitle: { color: "#FFF", fontSize: 17, fontFamily: "Inter_700Bold" },
-  badge: {
-    backgroundColor: YELLOW_DIM,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
+  badge: { backgroundColor: YELLOW_DIM, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10 },
   badgeText: { color: YELLOW, fontSize: 13, fontFamily: "Inter_700Bold" },
 
   inputGroup: { gap: 6 },
   inputLabel: { color: MUTED, fontSize: 12, fontFamily: "Inter_500Medium" },
   input: {
-    backgroundColor: "rgba(0,0,0,0.3)",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: BORDER,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: "#FFF",
-    fontSize: 16,
-    fontFamily: "Inter_500Medium",
+    backgroundColor: "rgba(0,0,0,0.3)", borderRadius: 14,
+    borderWidth: 1, borderColor: BORDER,
+    paddingHorizontal: 14, paddingVertical: 12,
+    color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium",
   },
 
   categoryRow: { flexDirection: "row", gap: 8 },
   categoryBtn: {
-    flex: 1,
-    backgroundColor: BORDER,
-    borderRadius: 12,
-    paddingVertical: 10,
-    alignItems: "center",
-    gap: 4,
+    flex: 1, backgroundColor: BORDER, borderRadius: 12,
+    paddingVertical: 10, alignItems: "center", gap: 4,
   },
   categoryBtnActive: { backgroundColor: YELLOW },
-  categoryBtnText: {
-    color: MUTED,
-    fontSize: 10,
-    fontFamily: "Inter_600SemiBold",
-  },
+  categoryBtnText: { color: MUTED, fontSize: 10, fontFamily: "Inter_600SemiBold" },
   categoryBtnTextActive: { color: "#000" },
 
   formActions: { flexDirection: "row", gap: 10 },
   cancelBtn: {
-    flex: 1,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: BORDER,
-    paddingVertical: 14,
-    alignItems: "center",
+    flex: 1, borderRadius: 14, borderWidth: 1, borderColor: BORDER,
+    paddingVertical: 14, alignItems: "center",
   },
-  cancelBtnText: {
-    color: MUTED,
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-  },
+  cancelBtnText: { color: MUTED, fontSize: 14, fontFamily: "Inter_600SemiBold" },
   saveBtn: {
-    flex: 2,
-    backgroundColor: YELLOW,
-    borderRadius: 14,
-    paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
+    flex: 2, backgroundColor: YELLOW, borderRadius: 14, paddingVertical: 14,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
   },
   saveBtnText: { color: "#000", fontSize: 14, fontFamily: "Inter_700Bold" },
   pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
 
-  expRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    gap: 12,
-  },
+  expRow: { flexDirection: "row", alignItems: "center", paddingVertical: 12, gap: 10 },
   expBorder: { borderBottomWidth: 1, borderBottomColor: BORDER },
+  expRowHighlight: { backgroundColor: "rgba(250,204,21,0.05)", borderRadius: 12 },
   expIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: RED_DIM,
-    alignItems: "center",
-    justifyContent: "center",
+    width: 40, height: 40, borderRadius: 13,
+    backgroundColor: RED_DIM, alignItems: "center", justifyContent: "center",
   },
   expInfo: { flex: 1, gap: 3 },
-  expLabel: { color: "#FFF", fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  expTime: { color: MUTED, fontSize: 12, fontFamily: "Inter_400Regular" },
+  expLabel: { color: "#FFF", fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  expTime: { color: MUTED, fontSize: 11, fontFamily: "Inter_400Regular" },
   expAmount: { color: RED, fontSize: 15, fontFamily: "Inter_700Bold" },
+  expActions: { flexDirection: "row", gap: 4 },
+  iconBtn: { padding: 6 },
 
   emptyState: { alignItems: "center", paddingVertical: 32, gap: 8 },
   emptyText: { color: MUTED, fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  emptySubText: {
-    color: BORDER,
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-  },
-  hint: {
-    color: BORDER,
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-  },
+  emptySubText: { color: BORDER, fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
 });
