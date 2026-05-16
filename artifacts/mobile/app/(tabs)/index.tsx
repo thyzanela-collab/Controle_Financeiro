@@ -14,19 +14,27 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 
 const YELLOW = "#FACC15";
-const YELLOW_DIM = "rgba(250, 204, 21, 0.15)";
+const YELLOW_DIM = "rgba(250, 204, 21, 0.12)";
 const CARD = "#18181B";
+const CARD2 = "#1F1F22";
 const BORDER = "#27272A";
 const MUTED = "#71717A";
 const BG = "#000000";
 const DAYS = ["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"];
-const CHART_HEIGHT = 130;
+const CHART_H = 110;
 
-const STATUS_COLORS = {
-  danger:  { bg: "#FACC15", label: "Começando", icon: "rocket-outline"   as const },
-  warning: { bg: "#FB923C", label: "Bom ritmo",  icon: "trending-up-outline" as const },
-  good:    { bg: "#34D399", label: "Quase lá!",  icon: "flame-outline"   as const },
-  great:   { bg: "#22C55E", label: "Meta batida!", icon: "trophy-outline" as const },
+const STATUS = {
+  danger:  { bg: "#FACC15", label: "Começando o dia",   icon: "rocket-outline"      as const },
+  warning: { bg: "#FB923C", label: "Bom ritmo!",         icon: "trending-up-outline" as const },
+  good:    { bg: "#34D399", label: "Quase na meta!",     icon: "flame-outline"       as const },
+  great:   { bg: "#22C55E", label: "Meta batida! 🎉",   icon: "trophy-outline"      as const },
+};
+
+const STAT_ICONS: Record<string, { icon: string; bg: string; color: string }> = {
+  horas:  { icon: "time-outline",        bg: "rgba(99,102,241,0.15)",  color: "#818CF8" },
+  km:     { icon: "speedometer-outline", bg: "rgba(34,197,94,0.12)",   color: "#22C55E" },
+  fuel:   { icon: "water-outline",       bg: "rgba(239,68,68,0.12)",   color: "#EF4444" },
+  rides:  { icon: "navigate-outline",    bg: "rgba(250,204,21,0.12)",  color: "#FACC15" },
 };
 
 export default function HomeScreen() {
@@ -34,265 +42,232 @@ export default function HomeScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const {
-    driverName,
-    dailyGoal,
-    todayNetProfit,
-    todayEarnings,
-    todayExpenses,
-    todayRides,
-    totalKmToday,
-    hoursOnlineToday,
-    weeklyData,
-    earningsPerHour,
-    goalStatus,
-    goalStreak,
-    addRide,
-    addExpense,
+    driverName, dailyGoal,
+    todayNetProfit, todayEarnings, todayExpenses,
+    todayRides, totalKmToday, hoursOnlineToday,
+    weeklyData, earningsPerHour, goalStatus, goalStreak,
+    addRide, addExpense,
   } = useApp();
 
-  const goalProgress = dailyGoal > 0
-    ? Math.min((todayNetProfit / dailyGoal) * 100, 100)
-    : 0;
-  const maxWeekly = Math.max(...weeklyData, 1);
-  const { bg: cardBg, label: statusLabel, icon: statusIcon } =
-    STATUS_COLORS[goalStatus];
+  const goalPct = dailyGoal > 0 ? Math.min((todayNetProfit / dailyGoal) * 100, 100) : 0;
+  const maxW = Math.max(...weeklyData, 1);
+  const { bg: cardBg, label: statusLabel, icon: statusIcon } = STATUS[goalStatus];
 
   const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+  const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
-  function handleAddEarnings() {
+  function quickRide() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     addRide({ value: 50, km: 10, durationMin: 15 });
   }
-
-  function handleAddFuel() {
+  function quickFuel() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     addExpense({ label: "Abastecimento", amount: 50, category: "fuel" });
   }
 
   return (
-    <View style={[styles.root, { backgroundColor: BG }]}>
+    <View style={[s.root, { backgroundColor: BG }]}>
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: topPad + 16, paddingBottom: 120 },
-        ]}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          s.content,
+          { paddingTop: topPad + 16, paddingBottom: 130 },
+        ]}
       >
-        {/* Header */}
-        <View style={styles.header}>
+        {/* ── Header ─────────────────────────────── */}
+        <View style={s.header}>
+          {/* glow blob */}
+          <View style={s.headerGlow} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.greeting}>{greeting}, {driverName}</Text>
-            <Text style={styles.appTitle}>
-              CONTROLE <Text style={styles.appTitleAccent}>FINANCEIRO</Text>
+            <Text style={s.greeting}>{greeting}, {driverName}</Text>
+            <Text style={s.appTitle}>
+              CONTROLE <Text style={s.appAccent}>FINANCEIRO</Text>
             </Text>
           </View>
-          <View style={styles.headerRight}>
+          <View style={s.headerRight}>
             {goalStreak > 0 && (
-              <View style={styles.streakBadge}>
-                <Ionicons name="flame" size={14} color="#FF6B35" />
-                <Text style={styles.streakText}>{goalStreak}</Text>
+              <View style={s.streakPill}>
+                <Ionicons name="flame" size={13} color="#FF6B35" />
+                <Text style={s.streakNum}>{goalStreak}</Text>
               </View>
             )}
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
+            <View style={s.avatar}>
+              <Text style={s.avatarLetter}>
                 {driverName.charAt(0).toUpperCase()}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Profit card — color changes with goal progress */}
-        <View style={[styles.profitCard, { backgroundColor: cardBg }]}>
-          <View style={styles.profitGlow} />
+        {/* ── Profit card ─────────────────────────── */}
+        <View style={[s.profitCard, { backgroundColor: cardBg }]}>
+          <View style={s.cardGlow} />
 
-          <View style={styles.statusRow}>
-            <Ionicons name={statusIcon} size={16} color="rgba(0,0,0,0.55)" />
-            <Text style={styles.statusLabel}>{statusLabel}</Text>
+          <View style={s.statusRow}>
+            <View style={s.statusIconWrap}>
+              <Ionicons name={statusIcon} size={14} color="rgba(0,0,0,0.6)" />
+            </View>
+            <Text style={s.statusLabel}>{statusLabel}</Text>
           </View>
 
-          <Text style={styles.profitLabel}>Lucro Líquido Hoje</Text>
-          <Text style={styles.profitAmount}>R$ {todayNetProfit}</Text>
+          <Text style={s.profitSub}>Lucro Líquido Hoje</Text>
+          <Text style={s.profitAmt}>R$ {todayNetProfit}</Text>
 
-          <View style={styles.profitFooter}>
+          <View style={s.profitMeta}>
             <View>
-              <Text style={styles.profitGoalLabel}>Meta diária</Text>
-              <Text style={styles.profitGoalValue}>R$ {dailyGoal}</Text>
+              <Text style={s.profitMetaLabel}>Meta diária</Text>
+              <Text style={s.profitMetaValue}>R$ {dailyGoal}</Text>
             </View>
-            <View style={styles.progressBadge}>
-              <Text style={styles.progressBadgeText}>
-                {Math.round(goalProgress)}%
-              </Text>
+            <View style={s.pctBubble}>
+              <Text style={s.pctText}>{Math.round(goalPct)}%</Text>
             </View>
           </View>
 
-          <View style={styles.progressTrack}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${goalProgress}%` as any },
-              ]}
-            />
+          <View style={s.track}>
+            <View style={[s.fill, { width: `${goalPct}%` as any }]} />
           </View>
+
+          {earningsPerHour > 0 && (
+            <View style={s.rphRow}>
+              <Ionicons name="time-outline" size={13} color="rgba(0,0,0,0.5)" />
+              <Text style={s.rphText}>R$ {earningsPerHour}/hora</Text>
+            </View>
+          )}
         </View>
 
-        {/* Stats grid */}
-        <View style={styles.statsGrid}>
-          <StatCard
+        {/* ── Stats grid ──────────────────────────── */}
+        <View style={s.grid}>
+          <RichStat
             label="Horas Online"
             value={`${hoursOnlineToday}h`}
-            icon="time-outline"
             sub={earningsPerHour > 0 ? `R$ ${earningsPerHour}/h` : undefined}
-            highlight={earningsPerHour >= 60}
+            spec={STAT_ICONS.horas}
           />
-          <StatCard
+          <RichStat
             label="KM Rodados"
             value={totalKmToday > 0 ? totalKmToday.toFixed(1) : "0"}
-            icon="speedometer-outline"
+            spec={STAT_ICONS.km}
           />
-          <StatCard
+          <RichStat
             label="Combustível"
             value={`R$ ${todayExpenses}`}
-            icon="water-outline"
-            danger={todayExpenses > dailyGoal * 0.3}
+            spec={STAT_ICONS.fuel}
+            warn={todayExpenses > 0 && todayExpenses >= dailyGoal * 0.3}
           />
-          <StatCard
+          <RichStat
             label="Corridas"
             value={`${todayRides.length}`}
-            icon="navigate-outline"
-            highlight={todayRides.length >= 10}
+            spec={STAT_ICONS.rides}
           />
         </View>
 
-        {/* Quick actions */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Ações Rápidas</Text>
-            <Ionicons name="flash" size={20} color={YELLOW} />
+        {/* ── Quick actions ───────────────────────── */}
+        <View style={s.card}>
+          <View style={s.cardHead}>
+            <Text style={s.cardTitle}>Ações Rápidas</Text>
+            <View style={s.flashBadge}>
+              <Ionicons name="flash" size={13} color={YELLOW} />
+              <Text style={s.flashText}>Rápido</Text>
+            </View>
           </View>
-          <View style={styles.actionsRow}>
+          <View style={s.actionRow}>
             <Pressable
-              style={({ pressed }) => [
-                styles.actionBtn,
-                styles.actionBtnPrimary,
-                pressed && styles.pressed,
-              ]}
-              onPress={handleAddEarnings}
+              style={({ pressed }) => [s.btn, s.btnYellow, pressed && s.pressed]}
+              onPress={quickRide}
             >
-              <Ionicons name="add-circle-outline" size={18} color="#000" />
-              <Text style={styles.actionBtnPrimaryText}>+ Corrida R$50</Text>
+              <Ionicons name="car-sport-outline" size={18} color="#000" />
+              <Text style={s.btnYellowTxt}>+ Corrida R$50</Text>
             </Pressable>
             <Pressable
-              style={({ pressed }) => [
-                styles.actionBtn,
-                styles.actionBtnSecondary,
-                pressed && styles.pressed,
-              ]}
-              onPress={handleAddFuel}
+              style={({ pressed }) => [s.btn, s.btnDark, pressed && s.pressed]}
+              onPress={quickFuel}
             >
               <Ionicons name="water-outline" size={18} color="#FFF" />
-              <Text style={styles.actionBtnSecondaryText}>+ Combustível</Text>
+              <Text style={s.btnDarkTxt}>+ Combustível</Text>
             </Pressable>
           </View>
         </View>
 
-        {/* Weekly chart */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
+        {/* ── Weekly chart ────────────────────────── */}
+        <View style={s.card}>
+          <View style={s.cardHead}>
             <View>
-              <Text style={styles.cardTitle}>Ganhos da Semana</Text>
-              <Text style={styles.cardSubtitle}>Últimos 7 dias</Text>
+              <Text style={s.cardTitle}>Semana</Text>
+              <Text style={s.cardSub}>Últimos 7 dias</Text>
             </View>
             {todayEarnings > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>R$ {todayEarnings} hoje</Text>
+              <View style={s.greenBadge}>
+                <Text style={s.greenBadgeTxt}>+R$ {todayEarnings} hoje</Text>
               </View>
             )}
           </View>
 
-          <View style={styles.chart}>
-            {weeklyData.map((val, i) => {
-              const barH = (val / maxWeekly) * CHART_HEIGHT;
-              const isToday = i === 6;
+          <View style={s.chart}>
+            {weeklyData.map((v, i) => {
+              const h = (v / maxW) * CHART_H;
+              const today = i === 6;
               return (
-                <View key={i} style={styles.barWrapper}>
-                  {val > 0 && (
-                    <Text style={styles.barVal}>
-                      {val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val}
+                <View key={i} style={s.barCol}>
+                  {v > 0 && (
+                    <Text style={[s.barLbl, today && { color: YELLOW }]}>
+                      {v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}
                     </Text>
                   )}
-                  <View
-                    style={[
-                      styles.bar,
-                      {
-                        height: Math.max(val > 0 ? barH : 4, 4),
-                        backgroundColor: isToday
-                          ? cardBg
-                          : val > 0
-                          ? "rgba(250, 204, 21, 0.35)"
-                          : BORDER,
-                      },
-                    ]}
-                  />
+                  <View style={s.barBg}>
+                    <View
+                      style={[
+                        s.bar,
+                        {
+                          height: Math.max(v > 0 ? h : 3, 3),
+                          backgroundColor: today
+                            ? cardBg
+                            : v > 0
+                            ? "rgba(250,204,21,0.3)"
+                            : BORDER,
+                          ...(today && {
+                            shadowColor: cardBg,
+                            shadowOffset: { width: 0, height: 0 },
+                            shadowOpacity: 0.5,
+                            shadowRadius: 6,
+                          }),
+                        },
+                      ]}
+                    />
+                  </View>
+                  <Text style={[s.dayLbl, today && { color: YELLOW }]}>
+                    {DAYS[i]}
+                  </Text>
                 </View>
               );
             })}
           </View>
-
-          <View style={styles.chartLabels}>
-            {DAYS.map((d, i) => (
-              <Text
-                key={d}
-                style={[
-                  styles.chartLabel,
-                  i === 6 && { color: YELLOW, fontFamily: "Inter_700Bold" },
-                ]}
-              >
-                {d}
-              </Text>
-            ))}
-          </View>
         </View>
 
-        {/* Daily summary */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Resumo do Dia</Text>
-            <Ionicons name="bulb-outline" size={20} color={YELLOW} />
+        {/* ── Daily summary ───────────────────────── */}
+        <View style={s.card}>
+          <View style={s.cardHead}>
+            <Text style={s.cardTitle}>Resumo</Text>
+            <Ionicons name="analytics-outline" size={18} color={MUTED} />
           </View>
 
-          <SummaryRow
-            label="Ganhos brutos"
-            value={`R$ ${todayEarnings}`}
-            color="#22C55E"
-          />
-          <SummaryRow
-            label="Total de gastos"
-            value={`R$ ${todayExpenses}`}
-            color="#EF4444"
-          />
-          <SummaryRow
-            label="Lucro líquido"
-            value={`R$ ${todayNetProfit}`}
-            color={cardBg}
-            bold
-          />
-          {earningsPerHour > 0 && (
-            <SummaryRow
-              label="Média por hora"
-              value={`R$ ${earningsPerHour}/h`}
-              color={YELLOW}
-            />
-          )}
+          <View style={s.summaryGrid}>
+            <SummaryTile label="Ganhos" value={`R$ ${todayEarnings}`} color="#22C55E" icon="arrow-up-circle-outline" />
+            <SummaryTile label="Gastos"  value={`R$ ${todayExpenses}`}  color="#EF4444" icon="arrow-down-circle-outline" />
+          </View>
+
+          <View style={[s.netRow, { borderColor: `${cardBg}40` }]}>
+            <View style={[s.netDot, { backgroundColor: cardBg }]} />
+            <Text style={s.netLabel}>Lucro líquido</Text>
+            <Text style={[s.netValue, { color: cardBg }]}>R$ {todayNetProfit}</Text>
+          </View>
+
           {goalStreak > 0 && (
-            <View style={styles.streakRow}>
-              <Ionicons name="flame" size={16} color="#FF6B35" />
-              <Text style={styles.streakRowText}>
+            <View style={s.streakBanner}>
+              <Ionicons name="flame" size={18} color="#FF6B35" />
+              <Text style={s.streakBannerTxt}>
                 {goalStreak === 1
-                  ? "Você bateu a meta hoje!"
-                  : `${goalStreak} dias seguidos batendo a meta!`}
+                  ? "Meta batida hoje!"
+                  : `${goalStreak} dias consecutivos na meta!`}
               </Text>
             </View>
           )}
@@ -302,180 +277,196 @@ export default function HomeScreen() {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  icon,
-  sub,
-  highlight,
-  danger,
+function RichStat({
+  label, value, sub, spec, warn,
 }: {
   label: string;
   value: string;
-  icon: string;
   sub?: string;
-  highlight?: boolean;
-  danger?: boolean;
+  spec: { icon: string; bg: string; color: string };
+  warn?: boolean;
 }) {
-  const valueColor = danger ? "#EF4444" : highlight ? "#22C55E" : YELLOW;
   return (
-    <View style={[styles.statCard, danger && styles.statCardDanger]}>
-      <Ionicons name={icon as any} size={16} color={MUTED} />
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statValue, { color: valueColor }]}>{value}</Text>
-      {sub && <Text style={styles.statSub}>{sub}</Text>}
+    <View style={[s.statCard, warn && s.statWarn]}>
+      <View style={[s.statIconWrap, { backgroundColor: spec.bg }]}>
+        <Ionicons name={spec.icon as any} size={16} color={spec.color} />
+      </View>
+      <Text style={s.statLabel}>{label}</Text>
+      <Text style={[s.statVal, { color: warn ? "#EF4444" : spec.color }]}>
+        {value}
+      </Text>
+      {sub && <Text style={[s.statSub, { color: spec.color }]}>{sub}</Text>}
     </View>
   );
 }
 
-function SummaryRow({
-  label,
-  value,
-  color,
-  bold,
+function SummaryTile({
+  label, value, color, icon,
 }: {
   label: string;
   value: string;
   color: string;
-  bold?: boolean;
+  icon: string;
 }) {
   return (
-    <View style={styles.summaryRow}>
-      <Text style={styles.summaryLabel}>{label}</Text>
-      <Text
-        style={[
-          styles.summaryValue,
-          { color },
-          bold && { fontSize: 16 },
-        ]}
-      >
-        {value}
-      </Text>
+    <View style={[s.sumTile, { borderColor: `${color}20` }]}>
+      <View style={[s.sumIcon, { backgroundColor: `${color}15` }]}>
+        <Ionicons name={icon as any} size={18} color={color} />
+      </View>
+      <Text style={s.sumLabel}>{label}</Text>
+      <Text style={[s.sumVal, { color }]}>{value}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   root: { flex: 1 },
-  scroll: { flex: 1 },
-  content: { paddingHorizontal: 16, gap: 14 },
+  content: { paddingHorizontal: 16, gap: 12 },
 
+  /* Header */
   header: {
     backgroundColor: CARD,
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: "rgba(250, 204, 21, 0.15)",
+    borderColor: "rgba(250,204,21,0.12)",
     padding: 20,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    overflow: "hidden",
+  },
+  headerGlow: {
+    position: "absolute",
+    top: -40,
+    left: -40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(250,204,21,0.06)",
   },
   greeting: { color: MUTED, fontSize: 12, fontFamily: "Inter_400Regular" },
   appTitle: {
     color: "#FFF",
-    fontSize: 20,
+    fontSize: 19,
     fontFamily: "Inter_700Bold",
     letterSpacing: 0.5,
     marginTop: 3,
   },
-  appTitleAccent: { color: YELLOW },
+  appAccent: { color: YELLOW },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
-  streakBadge: {
+  streakPill: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255,107,53,0.15)",
-    borderRadius: 12,
+    borderRadius: 20,
     paddingHorizontal: 8,
     paddingVertical: 5,
-    gap: 4,
+    gap: 3,
   },
-  streakText: {
-    color: "#FF6B35",
-    fontSize: 13,
-    fontFamily: "Inter_700Bold",
-  },
+  streakNum: { color: "#FF6B35", fontSize: 13, fontFamily: "Inter_700Bold" },
   avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 15,
     backgroundColor: YELLOW,
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: { color: "#000", fontSize: 20, fontFamily: "Inter_700Bold" },
+  avatarLetter: { color: "#000", fontSize: 19, fontFamily: "Inter_700Bold" },
 
+  /* Profit card */
   profitCard: {
     borderRadius: 32,
-    padding: 24,
+    padding: 22,
     overflow: "hidden",
     gap: 4,
   },
-  profitGlow: {
+  cardGlow: {
     position: "absolute",
-    top: -30,
-    right: -30,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    top: -40,
+    right: -40,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: "rgba(255,255,255,0.18)",
   },
   statusRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    marginBottom: 4,
+    gap: 6,
+    marginBottom: 6,
+  },
+  statusIconWrap: {
+    width: 22,
+    height: 22,
+    borderRadius: 7,
+    backgroundColor: "rgba(0,0,0,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   statusLabel: {
+    color: "rgba(0,0,0,0.6)",
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+  },
+  profitSub: {
+    color: "rgba(0,0,0,0.5)",
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+  },
+  profitAmt: {
+    color: "#000",
+    fontSize: 48,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: -1.5,
+    marginTop: 2,
+  },
+  profitMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 16,
+  },
+  profitMetaLabel: {
+    color: "rgba(0,0,0,0.5)",
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+  },
+  profitMetaValue: {
+    color: "#000",
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    marginTop: 1,
+  },
+  pctBubble: {
+    backgroundColor: "rgba(0,0,0,0.12)",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+  },
+  pctText: { color: "#000", fontSize: 18, fontFamily: "Inter_700Bold" },
+  track: {
+    height: 8,
+    backgroundColor: "rgba(0,0,0,0.12)",
+    borderRadius: 4,
+    marginTop: 12,
+    overflow: "hidden",
+  },
+  fill: { height: 8, backgroundColor: "#000", borderRadius: 4 },
+  rphRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 8,
+  },
+  rphText: {
     color: "rgba(0,0,0,0.55)",
     fontSize: 12,
     fontFamily: "Inter_600SemiBold",
   },
-  profitLabel: {
-    color: "rgba(0,0,0,0.55)",
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-  },
-  profitAmount: {
-    color: "#000",
-    fontSize: 50,
-    fontFamily: "Inter_700Bold",
-    letterSpacing: -1,
-    marginTop: 2,
-  },
-  profitFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 18,
-  },
-  profitGoalLabel: {
-    color: "rgba(0,0,0,0.5)",
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-  },
-  profitGoalValue: {
-    color: "#000",
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-    marginTop: 2,
-  },
-  progressBadge: {
-    backgroundColor: "rgba(0,0,0,0.12)",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 16,
-  },
-  progressBadgeText: { color: "#000", fontSize: 20, fontFamily: "Inter_700Bold" },
-  progressTrack: {
-    height: 10,
-    backgroundColor: "rgba(0,0,0,0.12)",
-    borderRadius: 5,
-    marginTop: 12,
-    overflow: "hidden",
-  },
-  progressFill: { height: 10, backgroundColor: "#000", borderRadius: 5 },
 
-  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  /* Stats grid */
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   statCard: {
     width: "48%",
     backgroundColor: CARD,
@@ -483,36 +474,57 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BORDER,
     padding: 16,
-    gap: 6,
+    gap: 7,
   },
-  statCardDanger: { borderColor: "rgba(239,68,68,0.3)" },
+  statWarn: { borderColor: "rgba(239,68,68,0.25)" },
+  statIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   statLabel: { color: MUTED, fontSize: 11, fontFamily: "Inter_400Regular" },
-  statValue: { fontSize: 24, fontFamily: "Inter_700Bold" },
-  statSub: { color: "#22C55E", fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  statVal: { fontSize: 24, fontFamily: "Inter_700Bold", lineHeight: 28 },
+  statSub: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
 
+  /* Cards */
   card: {
     backgroundColor: CARD,
-    borderRadius: 28,
+    borderRadius: 26,
     borderWidth: 1,
     borderColor: BORDER,
-    padding: 20,
-    gap: 12,
+    padding: 18,
+    gap: 14,
   },
-  cardHeader: {
+  cardHead: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
   },
   cardTitle: { color: "#FFF", fontSize: 16, fontFamily: "Inter_700Bold" },
-  cardSubtitle: {
-    color: MUTED,
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-    marginTop: 2,
+  cardSub: { color: MUTED, fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+  flashBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: YELLOW_DIM,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
+  flashText: { color: YELLOW, fontSize: 11, fontFamily: "Inter_700Bold" },
+  greenBadge: {
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  greenBadgeTxt: { color: "#22C55E", fontSize: 11, fontFamily: "Inter_700Bold" },
 
-  actionsRow: { flexDirection: "row", gap: 10 },
-  actionBtn: {
+  /* Actions */
+  actionRow: { flexDirection: "row", gap: 10 },
+  btn: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
@@ -521,70 +533,77 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     gap: 6,
   },
-  actionBtnPrimary: { backgroundColor: YELLOW },
-  actionBtnPrimaryText: { color: "#000", fontSize: 13, fontFamily: "Inter_700Bold" },
-  actionBtnSecondary: { backgroundColor: BORDER },
-  actionBtnSecondaryText: { color: "#FFF", fontSize: 13, fontFamily: "Inter_700Bold" },
-  pressed: { opacity: 0.75, transform: [{ scale: 0.97 }] },
+  btnYellow: { backgroundColor: YELLOW },
+  btnYellowTxt: { color: "#000", fontSize: 13, fontFamily: "Inter_700Bold" },
+  btnDark: { backgroundColor: BORDER },
+  btnDarkTxt: { color: "#FFF", fontSize: 13, fontFamily: "Inter_700Bold" },
+  pressed: { opacity: 0.72, transform: [{ scale: 0.97 }] },
 
-  badge: {
-    backgroundColor: YELLOW_DIM,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-  },
-  badgeText: { color: YELLOW, fontSize: 11, fontFamily: "Inter_700Bold" },
-
+  /* Chart */
   chart: {
-    height: CHART_HEIGHT,
+    height: CHART_H + 30,
     flexDirection: "row",
     alignItems: "flex-end",
     gap: 5,
   },
-  barWrapper: {
+  barCol: {
     flex: 1,
-    height: CHART_HEIGHT,
-    justifyContent: "flex-end",
+    height: CHART_H + 30,
     alignItems: "center",
+    justifyContent: "flex-end",
     gap: 3,
   },
-  barVal: {
-    color: MUTED,
-    fontSize: 8,
-    fontFamily: "Inter_500Medium",
-  },
+  barLbl: { color: MUTED, fontSize: 8, fontFamily: "Inter_500Medium" },
+  barBg: { flex: 1, width: "100%", justifyContent: "flex-end" },
   bar: { width: "100%", borderTopLeftRadius: 8, borderTopRightRadius: 8 },
-  chartLabels: { flexDirection: "row" },
-  chartLabel: {
-    color: MUTED,
-    fontSize: 9,
-    fontFamily: "Inter_600SemiBold",
-    flex: 1,
-    textAlign: "center",
-  },
+  dayLbl: { color: MUTED, fontSize: 9, fontFamily: "Inter_600SemiBold" },
 
-  summaryRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  /* Summary */
+  summaryGrid: { flexDirection: "row", gap: 10 },
+  sumTile: {
+    flex: 1,
+    backgroundColor: CARD2,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 14,
+    gap: 8,
+  },
+  sumIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.25)",
-    borderRadius: 14,
+    justifyContent: "center",
+  },
+  sumLabel: { color: MUTED, fontSize: 11, fontFamily: "Inter_400Regular" },
+  sumVal: { fontSize: 20, fontFamily: "Inter_700Bold" },
+
+  netRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: CARD2,
+    borderRadius: 16,
+    borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  summaryLabel: { color: MUTED, fontSize: 13, fontFamily: "Inter_400Regular" },
-  summaryValue: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  netDot: { width: 8, height: 8, borderRadius: 4 },
+  netLabel: { flex: 1, color: MUTED, fontSize: 13, fontFamily: "Inter_400Regular" },
+  netValue: { fontSize: 17, fontFamily: "Inter_700Bold" },
 
-  streakRow: {
+  streakBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     backgroundColor: "rgba(255,107,53,0.1)",
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,107,53,0.2)",
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 11,
   },
-  streakRowText: {
+  streakBannerTxt: {
     color: "#FF6B35",
     fontSize: 13,
     fontFamily: "Inter_600SemiBold",

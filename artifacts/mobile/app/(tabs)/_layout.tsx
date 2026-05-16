@@ -49,28 +49,47 @@ function ClassicTabLayout() {
         headerShown: false,
         tabBarActiveTintColor: YELLOW,
         tabBarInactiveTintColor: MUTED,
+        tabBarShowLabel: true,
         tabBarStyle: {
           position: "absolute",
+          bottom: isWeb ? 16 : 20,
+          left: 16,
+          right: 16,
+          borderRadius: 28,
+          height: isWeb ? 74 : 68,
           backgroundColor: isIOS ? "transparent" : CARD,
           borderTopWidth: 1,
           borderTopColor: BORDER,
-          elevation: 0,
-          ...(isWeb ? { height: 84 } : {}),
+          borderWidth: 1,
+          borderColor: BORDER,
+          elevation: 20,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.4,
+          shadowRadius: 20,
         },
         tabBarBackground: () =>
           isIOS ? (
             <BlurView
-              intensity={80}
+              intensity={90}
               tint="dark"
-              style={StyleSheet.absoluteFill}
+              style={[StyleSheet.absoluteFill, { borderRadius: 28, overflow: "hidden" }]}
             />
-          ) : isWeb ? (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: CARD }]} />
-          ) : null,
+          ) : (
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: CARD, borderRadius: 28 },
+              ]}
+            />
+          ),
         tabBarLabelStyle: {
           fontSize: 10,
           fontFamily: "Inter_600SemiBold",
-          marginBottom: isWeb ? 10 : 0,
+          marginBottom: isWeb ? 10 : 4,
+        },
+        tabBarItemStyle: {
+          paddingTop: 6,
         },
       }}
     >
@@ -78,11 +97,19 @@ function ClassicTabLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color }) =>
+          tabBarIcon: ({ color, focused }) =>
             isIOS ? (
-              <SymbolView name="house.fill" tintColor={color} size={22} />
+              <SymbolView
+                name={focused ? "house.fill" : "house"}
+                tintColor={color}
+                size={22}
+              />
             ) : (
-              <Ionicons name="home" size={22} color={color} />
+              <Ionicons
+                name={focused ? "home" : "home-outline"}
+                size={22}
+                color={color}
+              />
             ),
         }}
       />
@@ -90,11 +117,19 @@ function ClassicTabLayout() {
         name="ganhos"
         options={{
           title: "Ganhos",
-          tabBarIcon: ({ color }) =>
+          tabBarIcon: ({ color, focused }) =>
             isIOS ? (
-              <SymbolView name="dollarsign.circle.fill" tintColor={color} size={22} />
+              <SymbolView
+                name={focused ? "dollarsign.circle.fill" : "dollarsign.circle"}
+                tintColor={color}
+                size={22}
+              />
             ) : (
-              <Ionicons name="cash-outline" size={22} color={color} />
+              <Ionicons
+                name={focused ? "cash" : "cash-outline"}
+                size={22}
+                color={color}
+              />
             ),
         }}
       />
@@ -102,11 +137,19 @@ function ClassicTabLayout() {
         name="gastos"
         options={{
           title: "Gastos",
-          tabBarIcon: ({ color }) =>
+          tabBarIcon: ({ color, focused }) =>
             isIOS ? (
-              <SymbolView name="fuelpump.fill" tintColor={color} size={22} />
+              <SymbolView
+                name={focused ? "fuelpump.fill" : "fuelpump"}
+                tintColor={color}
+                size={22}
+              />
             ) : (
-              <Ionicons name="water-outline" size={22} color={color} />
+              <Ionicons
+                name={focused ? "water" : "water-outline"}
+                size={22}
+                color={color}
+              />
             ),
         }}
       />
@@ -114,11 +157,19 @@ function ClassicTabLayout() {
         name="relatorios"
         options={{
           title: "Relatórios",
-          tabBarIcon: ({ color }) =>
+          tabBarIcon: ({ color, focused }) =>
             isIOS ? (
-              <SymbolView name="chart.bar.fill" tintColor={color} size={22} />
+              <SymbolView
+                name={focused ? "chart.bar.fill" : "chart.bar"}
+                tintColor={color}
+                size={22}
+              />
             ) : (
-              <Ionicons name="bar-chart-outline" size={22} color={color} />
+              <Ionicons
+                name={focused ? "bar-chart" : "bar-chart-outline"}
+                size={22}
+                color={color}
+              />
             ),
         }}
       />
@@ -126,11 +177,19 @@ function ClassicTabLayout() {
         name="config"
         options={{
           title: "Config",
-          tabBarIcon: ({ color }) =>
+          tabBarIcon: ({ color, focused }) =>
             isIOS ? (
-              <SymbolView name="gearshape.fill" tintColor={color} size={22} />
+              <SymbolView
+                name={focused ? "gearshape.fill" : "gearshape"}
+                tintColor={color}
+                size={22}
+              />
             ) : (
-              <Ionicons name="settings-outline" size={22} color={color} />
+              <Ionicons
+                name={focused ? "settings" : "settings-outline"}
+                size={22}
+                color={color}
+              />
             ),
         }}
       />
