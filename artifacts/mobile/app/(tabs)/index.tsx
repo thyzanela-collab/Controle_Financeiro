@@ -59,7 +59,7 @@ export default function HomeScreen() {
           <View>
             <Text style={styles.greeting}>Boa noite, Thyago</Text>
             <Text style={styles.appTitle}>
-              VELOZ <Text style={styles.appTitleAccent}>DRIVER</Text>
+              CONTROLE <Text style={styles.appTitleAccent}>FINANCEIRO</Text>
             </Text>
           </View>
           <View style={styles.avatar}>
