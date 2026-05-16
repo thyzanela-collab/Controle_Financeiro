@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useMemo, useState } from "react";
+import React from "react";
 import {
   Platform,
   Pressable,
@@ -11,37 +11,49 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useApp } from "@/context/AppContext";
+
 const YELLOW = "#FACC15";
 const YELLOW_DIM = "rgba(250, 204, 21, 0.15)";
 const CARD = "#18181B";
 const BORDER = "#27272A";
 const MUTED = "#71717A";
 const BG = "#000000";
-
-const WEEKLY = [40, 65, 55, 85, 70, 100, 90];
 const DAYS = ["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"];
 const CHART_HEIGHT = 140;
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-
-  const [earnings, setEarnings] = useState<number>(482);
-  const [fuel] = useState<number>(98);
-  const [rides, setRides] = useState<number>(23);
-
-  const netProfit = useMemo(() => earnings - fuel, [earnings, fuel]);
-  const goalProgress = Math.min((netProfit / 600) * 100, 100);
-
   const topPad = Platform.OS === "web" ? 67 : insets.top;
+
+  const {
+    driverName,
+    dailyGoal,
+    todayNetProfit,
+    todayEarnings,
+    todayExpenses,
+    todayRides,
+    totalKmToday,
+    hoursOnlineToday,
+    weeklyData,
+    addRide,
+    addExpense,
+  } = useApp();
+
+  const goalProgress = dailyGoal > 0 ? Math.min((todayNetProfit / dailyGoal) * 100, 100) : 0;
+  const maxWeekly = Math.max(...weeklyData, 1);
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
   function handleAddEarnings() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setEarnings((prev) => prev + 50);
+    addRide({ value: 50, km: 10, durationMin: 15 });
   }
 
-  function handleAddRide() {
+  function handleAddFuel() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setRides((prev) => prev + 1);
+    addExpense({ label: "Abastecimento", amount: 50, category: "fuel" });
   }
 
   return (
@@ -54,28 +66,28 @@ export default function HomeScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Boa noite, Thyago</Text>
+            <Text style={styles.greeting}>{greeting}, {driverName}</Text>
             <Text style={styles.appTitle}>
               CONTROLE <Text style={styles.appTitleAccent}>FINANCEIRO</Text>
             </Text>
           </View>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>V</Text>
+            <Text style={styles.avatarText}>
+              {driverName.charAt(0).toUpperCase()}
+            </Text>
           </View>
         </View>
 
-        {/* Profit Card */}
         <View style={styles.profitCard}>
           <View style={styles.profitGlow} />
           <Text style={styles.profitLabel}>Lucro Líquido Hoje</Text>
-          <Text style={styles.profitAmount}>R$ {netProfit}</Text>
+          <Text style={styles.profitAmount}>R$ {todayNetProfit}</Text>
           <View style={styles.profitFooter}>
             <View>
               <Text style={styles.profitGoalLabel}>Meta diária</Text>
-              <Text style={styles.profitGoalValue}>R$ 600</Text>
+              <Text style={styles.profitGoalValue}>R$ {dailyGoal}</Text>
             </View>
             <View style={styles.progressBadge}>
               <Text style={styles.progressBadgeText}>
@@ -93,13 +105,28 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Stats Grid */}
         <View style={styles.statsGrid}>
           {[
-            { label: "Horas Online", value: "8.4h", icon: "time-outline" },
-            { label: "KM Rodados", value: "164", icon: "speedometer-outline" },
-            { label: "Combustível", value: `R$ ${fuel}`, icon: "water-outline" },
-            { label: "Corridas", value: `${rides}`, icon: "navigate-outline" },
+            {
+              label: "Horas Online",
+              value: `${hoursOnlineToday}h`,
+              icon: "time-outline",
+            },
+            {
+              label: "KM Rodados",
+              value: totalKmToday.toFixed(1),
+              icon: "speedometer-outline",
+            },
+            {
+              label: "Combustível",
+              value: `R$ ${todayExpenses}`,
+              icon: "water-outline",
+            },
+            {
+              label: "Corridas",
+              value: `${todayRides.length}`,
+              icon: "navigate-outline",
+            },
           ].map(({ label, value, icon }) => (
             <View key={label} style={styles.statCard}>
               <Ionicons name={icon as any} size={18} color={MUTED} />
@@ -109,7 +136,6 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        {/* Quick Actions */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Ações Rápidas</Text>
@@ -125,7 +151,7 @@ export default function HomeScreen() {
               onPress={handleAddEarnings}
             >
               <Ionicons name="add-circle-outline" size={20} color="#000" />
-              <Text style={styles.actionBtnPrimaryText}>+ R$50</Text>
+              <Text style={styles.actionBtnPrimaryText}>+ Corrida R$50</Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [
@@ -133,41 +159,42 @@ export default function HomeScreen() {
                 styles.actionBtnSecondary,
                 pressed && styles.pressed,
               ]}
-              onPress={handleAddRide}
+              onPress={handleAddFuel}
             >
-              <Ionicons name="car-sport-outline" size={20} color="#FFF" />
-              <Text style={styles.actionBtnSecondaryText}>+ Corrida</Text>
+              <Ionicons name="water-outline" size={20} color="#FFF" />
+              <Text style={styles.actionBtnSecondaryText}>+ Combustível</Text>
             </Pressable>
           </View>
         </View>
 
-        {/* Weekly Chart */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <View>
               <Text style={styles.cardTitle}>Ganhos da Semana</Text>
-              <Text style={styles.cardSubtitle}>
-                Melhor resultado nos últimos 30 dias
-              </Text>
+              <Text style={styles.cardSubtitle}>Últimos 7 dias</Text>
             </View>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>+18%</Text>
-            </View>
+            {todayEarnings > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>R$ {todayEarnings} hoje</Text>
+              </View>
+            )}
           </View>
           <View style={styles.chart}>
-            {WEEKLY.map((pct, i) => {
-              const barH = (pct / 100) * CHART_HEIGHT;
-              const isToday = i === 5;
+            {weeklyData.map((val, i) => {
+              const barH = maxWeekly > 0 ? (val / maxWeekly) * CHART_HEIGHT : 4;
+              const isToday = i === 6;
               return (
                 <View key={i} style={styles.barWrapper}>
                   <View
                     style={[
                       styles.bar,
                       {
-                        height: barH,
+                        height: Math.max(barH, 4),
                         backgroundColor: isToday
                           ? YELLOW
-                          : "rgba(250, 204, 21, 0.35)",
+                          : val > 0
+                          ? "rgba(250, 204, 21, 0.4)"
+                          : BORDER,
                       },
                     ]}
                   />
@@ -184,16 +211,24 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* AI Summary */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Resumo Inteligente</Text>
+            <Text style={styles.cardTitle}>Resumo do Dia</Text>
             <Ionicons name="bulb-outline" size={22} color={YELLOW} />
           </View>
           {[
-            { label: "Média por hora", value: "R$ 57/h" },
-            { label: "Melhor horário", value: "18h - 22h" },
-            { label: "Gasto semanal", value: "R$ 682" },
+            {
+              label: "Ganhos brutos",
+              value: `R$ ${todayEarnings}`,
+            },
+            {
+              label: "Total de gastos",
+              value: `R$ ${todayExpenses}`,
+            },
+            {
+              label: "Lucro líquido",
+              value: `R$ ${todayNetProfit}`,
+            },
           ].map(({ label, value }) => (
             <View key={label} style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>{label}</Text>
@@ -209,10 +244,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
-  content: {
-    paddingHorizontal: 16,
-    gap: 14,
-  },
+  content: { paddingHorizontal: 16, gap: 14 },
 
   header: {
     backgroundColor: CARD,
@@ -224,14 +256,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  greeting: {
-    color: MUTED,
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-  },
+  greeting: { color: MUTED, fontSize: 13, fontFamily: "Inter_400Regular" },
   appTitle: {
     color: "#FFF",
-    fontSize: 26,
+    fontSize: 22,
     fontFamily: "Inter_700Bold",
     letterSpacing: 1,
     marginTop: 4,
@@ -245,11 +273,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: {
-    color: "#000",
-    fontSize: 24,
-    fontFamily: "Inter_700Bold",
-  },
+  avatarText: { color: "#000", fontSize: 24, fontFamily: "Inter_700Bold" },
 
   profitCard: {
     backgroundColor: YELLOW,
@@ -301,11 +325,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 16,
   },
-  progressBadgeText: {
-    color: "#000",
-    fontSize: 20,
-    fontFamily: "Inter_700Bold",
-  },
+  progressBadgeText: { color: "#000", fontSize: 20, fontFamily: "Inter_700Bold" },
   progressTrack: {
     height: 12,
     backgroundColor: "rgba(0,0,0,0.12)",
@@ -313,17 +333,9 @@ const styles = StyleSheet.create({
     marginTop: 14,
     overflow: "hidden",
   },
-  progressFill: {
-    height: 12,
-    backgroundColor: "#000",
-    borderRadius: 6,
-  },
+  progressFill: { height: 12, backgroundColor: "#000", borderRadius: 6 },
 
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
+  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   statCard: {
     width: "48%",
     backgroundColor: CARD,
@@ -333,16 +345,8 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 8,
   },
-  statLabel: {
-    color: MUTED,
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-  },
-  statValue: {
-    color: YELLOW,
-    fontSize: 26,
-    fontFamily: "Inter_700Bold",
-  },
+  statLabel: { color: MUTED, fontSize: 12, fontFamily: "Inter_400Regular" },
+  statValue: { color: YELLOW, fontSize: 26, fontFamily: "Inter_700Bold" },
 
   card: {
     backgroundColor: CARD,
@@ -357,11 +361,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     justifyContent: "space-between",
   },
-  cardTitle: {
-    color: "#FFF",
-    fontSize: 17,
-    fontFamily: "Inter_700Bold",
-  },
+  cardTitle: { color: "#FFF", fontSize: 17, fontFamily: "Inter_700Bold" },
   cardSubtitle: {
     color: MUTED,
     fontSize: 12,
@@ -369,10 +369,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 
-  actionsRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
+  actionsRow: { flexDirection: "row", gap: 10 },
   actionBtn: {
     flex: 1,
     flexDirection: "row",
@@ -383,21 +380,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   actionBtnPrimary: { backgroundColor: YELLOW },
-  actionBtnPrimaryText: {
-    color: "#000",
-    fontSize: 14,
-    fontFamily: "Inter_700Bold",
-  },
+  actionBtnPrimaryText: { color: "#000", fontSize: 13, fontFamily: "Inter_700Bold" },
   actionBtnSecondary: { backgroundColor: BORDER },
-  actionBtnSecondaryText: {
-    color: "#FFF",
-    fontSize: 14,
-    fontFamily: "Inter_700Bold",
-  },
-  pressed: {
-    opacity: 0.75,
-    transform: [{ scale: 0.97 }],
-  },
+  actionBtnSecondaryText: { color: "#FFF", fontSize: 13, fontFamily: "Inter_700Bold" },
+  pressed: { opacity: 0.75, transform: [{ scale: 0.97 }] },
 
   badge: {
     backgroundColor: YELLOW_DIM,
@@ -405,11 +391,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 12,
   },
-  badgeText: {
-    color: YELLOW,
-    fontSize: 13,
-    fontFamily: "Inter_700Bold",
-  },
+  badgeText: { color: YELLOW, fontSize: 12, fontFamily: "Inter_700Bold" },
 
   chart: {
     height: CHART_HEIGHT,
@@ -422,14 +404,8 @@ const styles = StyleSheet.create({
     height: CHART_HEIGHT,
     justifyContent: "flex-end",
   },
-  bar: {
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
-  },
-  chartLabels: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
+  bar: { borderTopLeftRadius: 10, borderTopRightRadius: 10 },
+  chartLabels: { flexDirection: "row", justifyContent: "space-between" },
   chartLabel: {
     color: MUTED,
     fontSize: 10,
@@ -447,14 +423,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
-  summaryLabel: {
-    color: MUTED,
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-  },
-  summaryValue: {
-    color: YELLOW,
-    fontSize: 14,
-    fontFamily: "Inter_700Bold",
-  },
+  summaryLabel: { color: MUTED, fontSize: 14, fontFamily: "Inter_400Regular" },
+  summaryValue: { color: YELLOW, fontSize: 14, fontFamily: "Inter_700Bold" },
 });

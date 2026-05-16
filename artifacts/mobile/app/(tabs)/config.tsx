@@ -1,18 +1,23 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import {
+  Alert,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useApp } from "@/context/AppContext";
+
 const YELLOW = "#FACC15";
-const YELLOW_DIM = "rgba(250, 204, 21, 0.15)";
 const CARD = "#18181B";
 const BORDER = "#27272A";
 const MUTED = "#71717A";
@@ -22,64 +27,184 @@ export default function ConfigScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const [notifications, setNotifications] = useState<boolean>(true);
-  const [darkMode, setDarkMode] = useState<boolean>(true);
-  const [goalAlert, setGoalAlert] = useState<boolean>(true);
+  const { driverName, dailyGoal, setDailyGoal, setDriverName, rides, expenses } = useApp();
+
+  const [notifications, setNotifications] = useState(true);
+  const [goalAlert, setGoalAlert] = useState(true);
+
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(driverName);
+
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalInput, setGoalInput] = useState(String(dailyGoal));
+
+  function handleSaveName() {
+    const trimmed = nameInput.trim();
+    if (!trimmed) {
+      Alert.alert("Nome inválido", "Informe seu nome.");
+      return;
+    }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setDriverName(trimmed);
+    setEditingName(false);
+  }
+
+  function handleSaveGoal() {
+    const g = parseFloat(goalInput);
+    if (!g || g <= 0) {
+      Alert.alert("Meta inválida", "Informe um valor maior que zero.");
+      return;
+    }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setDailyGoal(g);
+    setEditingGoal(false);
+  }
+
+  function handleClearData() {
+    Alert.alert(
+      "Apagar todos os dados",
+      `Isso vai remover ${rides.length} corridas e ${expenses.length} gastos. Essa ação não pode ser desfeita.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Apagar tudo",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              "Funcionalidade reservada",
+              "Para apagar os dados, reinstale o aplicativo."
+            );
+          },
+        },
+      ]
+    );
+  }
 
   return (
-    <View style={[styles.root, { backgroundColor: BG }]}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: BG }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
       <ScrollView
-        style={styles.scroll}
         contentContainerStyle={[
           styles.content,
           { paddingTop: topPad + 16, paddingBottom: 120 },
         ]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.pageTitle}>Configurações</Text>
 
         <View style={styles.profileCard}>
           <View style={styles.avatarWrap}>
-            <Text style={styles.avatarText}>T</Text>
+            <Text style={styles.avatarText}>
+              {driverName.charAt(0).toUpperCase()}
+            </Text>
           </View>
-          <View>
-            <Text style={styles.profileName}>Thyago Silva</Text>
-            <Text style={styles.profileSub}>Motorista Premium · 4.92 ⭐</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.profileName}>{driverName}</Text>
+            <Text style={styles.profileSub}>
+              {rides.length} corridas · {expenses.length} gastos registrados
+            </Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={MUTED} />
+          <Pressable
+            style={({ pressed }) => [styles.editIcon, pressed && styles.pressed]}
+            onPress={() => {
+              setNameInput(driverName);
+              setEditingName(true);
+            }}
+          >
+            <Ionicons name="create-outline" size={20} color={YELLOW} />
+          </Pressable>
         </View>
+
+        {editingName && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Seu nome</Text>
+            <TextInput
+              style={styles.input}
+              value={nameInput}
+              onChangeText={setNameInput}
+              placeholder="Digite seu nome"
+              placeholderTextColor={MUTED}
+              autoFocus
+            />
+            <View style={styles.formActions}>
+              <Pressable
+                style={({ pressed }) => [styles.cancelBtn, pressed && styles.pressed]}
+                onPress={() => setEditingName(false)}
+              >
+                <Text style={styles.cancelBtnText}>Cancelar</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.saveBtn, pressed && styles.pressed]}
+                onPress={handleSaveName}
+              >
+                <Ionicons name="checkmark" size={18} color="#000" />
+                <Text style={styles.saveBtnText}>Salvar</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>Meta Diária</Text>
-          <View style={styles.goalRow}>
-            <View style={styles.goalInfo}>
-              <Text style={styles.goalAmount}>R$ 600</Text>
-              <Text style={styles.goalSub}>Meta atual</Text>
+          {editingGoal ? (
+            <>
+              <TextInput
+                style={styles.input}
+                value={goalInput}
+                onChangeText={setGoalInput}
+                keyboardType="decimal-pad"
+                placeholder="Ex: 600"
+                placeholderTextColor={MUTED}
+                autoFocus
+              />
+              <View style={styles.formActions}>
+                <Pressable
+                  style={({ pressed }) => [styles.cancelBtn, pressed && styles.pressed]}
+                  onPress={() => setEditingGoal(false)}
+                >
+                  <Text style={styles.cancelBtnText}>Cancelar</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.saveBtn, pressed && styles.pressed]}
+                  onPress={handleSaveGoal}
+                >
+                  <Ionicons name="checkmark" size={18} color="#000" />
+                  <Text style={styles.saveBtnText}>Salvar</Text>
+                </Pressable>
+              </View>
+            </>
+          ) : (
+            <View style={styles.goalRow}>
+              <View>
+                <Text style={styles.goalAmount}>R$ {dailyGoal}</Text>
+                <Text style={styles.goalSub}>Meta de lucro líquido diário</Text>
+              </View>
+              <Pressable
+                style={({ pressed }) => [styles.editBtn, pressed && styles.pressed]}
+                onPress={() => {
+                  setGoalInput(String(dailyGoal));
+                  setEditingGoal(true);
+                }}
+              >
+                <Ionicons name="create-outline" size={16} color="#000" />
+                <Text style={styles.editBtnText}>Editar</Text>
+              </Pressable>
             </View>
-            <Pressable style={({ pressed }) => [styles.editBtn, pressed && styles.pressed]}>
-              <Ionicons name="create-outline" size={18} color="#000" />
-              <Text style={styles.editBtnText}>Editar</Text>
-            </Pressable>
-          </View>
+          )}
         </View>
 
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>Preferências</Text>
-
           {[
             {
               label: "Notificações",
-              sub: "Alertas de corridas e metas",
+              sub: "Alertas e lembretes",
               icon: "notifications-outline",
               value: notifications,
               onChange: setNotifications,
-            },
-            {
-              label: "Modo escuro",
-              sub: "Interface escura sempre ativa",
-              icon: "moon-outline",
-              value: darkMode,
-              onChange: setDarkMode,
             },
             {
               label: "Alerta de meta",
@@ -102,7 +227,10 @@ export default function ConfigScreen() {
               </View>
               <Switch
                 value={value}
-                onValueChange={onChange}
+                onValueChange={(v) => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  onChange(v);
+                }}
                 trackColor={{ false: BORDER, true: YELLOW }}
                 thumbColor={value ? "#000" : "#FFF"}
               />
@@ -111,43 +239,29 @@ export default function ConfigScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Veículo</Text>
-          {[
-            { label: "Honda Civic 2021", sub: "Placa · ABC-1D23", icon: "car-outline" },
-            { label: "Rendimento", sub: "11.2 km/L", icon: "speedometer-outline" },
-          ].map(({ label, sub, icon }, idx) => (
-            <Pressable
-              key={label}
-              style={({ pressed }) => [
-                styles.infoRow,
-                idx === 0 && styles.infoBorder,
-                pressed && styles.pressed,
-              ]}
-            >
-              <View style={styles.prefIcon}>
-                <Ionicons name={icon as any} size={18} color={MUTED} />
-              </View>
-              <View style={styles.prefInfo}>
-                <Text style={styles.prefLabel}>{label}</Text>
-                <Text style={styles.prefSub}>{sub}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={MUTED} />
-            </Pressable>
-          ))}
+          <Text style={styles.sectionLabel}>Dados</Text>
+          <View style={styles.dataRow}>
+            <Ionicons name="car-outline" size={18} color={MUTED} />
+            <Text style={styles.dataLabel}>{rides.length} corridas registradas</Text>
+          </View>
+          <View style={[styles.dataRow, styles.dataBorder]}>
+            <Ionicons name="receipt-outline" size={18} color={MUTED} />
+            <Text style={styles.dataLabel}>{expenses.length} gastos registrados</Text>
+          </View>
+          <Pressable
+            style={({ pressed }) => [styles.dangerBtn, pressed && styles.pressed]}
+            onPress={handleClearData}
+          >
+            <Ionicons name="trash-outline" size={16} color="#EF4444" />
+            <Text style={styles.dangerBtnText}>Apagar todos os dados</Text>
+          </Pressable>
         </View>
-
-        <Pressable style={({ pressed }) => [styles.logoutBtn, pressed && styles.pressed]}>
-          <Ionicons name="log-out-outline" size={18} color="#EF4444" />
-          <Text style={styles.logoutText}>Sair da conta</Text>
-        </Pressable>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  scroll: { flex: 1 },
   content: { paddingHorizontal: 16, gap: 14 },
   pageTitle: {
     color: "#FFF",
@@ -176,7 +290,13 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: "#000", fontSize: 22, fontFamily: "Inter_700Bold" },
   profileName: { color: "#FFF", fontSize: 16, fontFamily: "Inter_700Bold" },
-  profileSub: { color: MUTED, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  profileSub: {
+    color: MUTED,
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
+  },
+  editIcon: { padding: 8 },
 
   card: {
     backgroundColor: CARD,
@@ -184,40 +304,73 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BORDER,
     padding: 20,
-    gap: 4,
+    gap: 12,
   },
+  cardTitle: { color: "#FFF", fontSize: 17, fontFamily: "Inter_700Bold" },
   sectionLabel: {
     color: MUTED,
     fontSize: 11,
     fontFamily: "Inter_600SemiBold",
     letterSpacing: 1,
     textTransform: "uppercase",
-    marginBottom: 8,
   },
+
+  input: {
+    backgroundColor: "rgba(0,0,0,0.3)",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: "#FFF",
+    fontSize: 16,
+    fontFamily: "Inter_500Medium",
+  },
+  formActions: { flexDirection: "row", gap: 10 },
+  cancelBtn: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  cancelBtnText: { color: MUTED, fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  saveBtn: {
+    flex: 2,
+    backgroundColor: YELLOW,
+    borderRadius: 14,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  saveBtnText: { color: "#000", fontSize: 14, fontFamily: "Inter_700Bold" },
+  pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
 
   goalRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  goalInfo: { gap: 2 },
   goalAmount: { color: "#FFF", fontSize: 28, fontFamily: "Inter_700Bold" },
-  goalSub: { color: MUTED, fontSize: 12, fontFamily: "Inter_400Regular" },
+  goalSub: { color: MUTED, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   editBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     backgroundColor: YELLOW,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 12,
   },
   editBtnText: { color: "#000", fontSize: 13, fontFamily: "Inter_700Bold" },
 
   prefRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
+    paddingVertical: 12,
     gap: 12,
   },
   prefBorder: { borderBottomWidth: 1, borderBottomColor: BORDER },
@@ -233,25 +386,25 @@ const styles = StyleSheet.create({
   prefLabel: { color: "#FFF", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   prefSub: { color: MUTED, fontSize: 12, fontFamily: "Inter_400Regular" },
 
-  infoRow: {
+  dataRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
-    gap: 12,
+    gap: 10,
+    paddingVertical: 10,
   },
-  infoBorder: { borderBottomWidth: 1, borderBottomColor: BORDER },
-
-  logoutBtn: {
+  dataBorder: { borderTopWidth: 1, borderTopColor: BORDER },
+  dataLabel: { color: MUTED, fontSize: 14, fontFamily: "Inter_400Regular" },
+  dangerBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     backgroundColor: "rgba(239,68,68,0.1)",
-    borderRadius: 18,
-    paddingVertical: 16,
+    borderRadius: 14,
+    paddingVertical: 14,
     borderWidth: 1,
     borderColor: "rgba(239,68,68,0.2)",
+    marginTop: 4,
   },
-  logoutText: { color: "#EF4444", fontSize: 15, fontFamily: "Inter_700Bold" },
-  pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
+  dangerBtnText: { color: "#EF4444", fontSize: 14, fontFamily: "Inter_700Bold" },
 });
