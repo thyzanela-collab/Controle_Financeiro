@@ -20,7 +20,14 @@ const BORDER = "#27272A";
 const MUTED = "#71717A";
 const BG = "#000000";
 const DAYS = ["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"];
-const CHART_HEIGHT = 140;
+const CHART_HEIGHT = 130;
+
+const STATUS_COLORS = {
+  danger:  { bg: "#FACC15", label: "Começando", icon: "rocket-outline"   as const },
+  warning: { bg: "#FB923C", label: "Bom ritmo",  icon: "trending-up-outline" as const },
+  good:    { bg: "#34D399", label: "Quase lá!",  icon: "flame-outline"   as const },
+  great:   { bg: "#22C55E", label: "Meta batida!", icon: "trophy-outline" as const },
+};
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -36,15 +43,23 @@ export default function HomeScreen() {
     totalKmToday,
     hoursOnlineToday,
     weeklyData,
+    earningsPerHour,
+    goalStatus,
+    goalStreak,
     addRide,
     addExpense,
   } = useApp();
 
-  const goalProgress = dailyGoal > 0 ? Math.min((todayNetProfit / dailyGoal) * 100, 100) : 0;
+  const goalProgress = dailyGoal > 0
+    ? Math.min((todayNetProfit / dailyGoal) * 100, 100)
+    : 0;
   const maxWeekly = Math.max(...weeklyData, 1);
+  const { bg: cardBg, label: statusLabel, icon: statusIcon } =
+    STATUS_COLORS[goalStatus];
 
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+  const greeting =
+    hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
   function handleAddEarnings() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -66,24 +81,41 @@ export default function HomeScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Header */}
         <View style={styles.header}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>{greeting}, {driverName}</Text>
             <Text style={styles.appTitle}>
               CONTROLE <Text style={styles.appTitleAccent}>FINANCEIRO</Text>
             </Text>
           </View>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {driverName.charAt(0).toUpperCase()}
-            </Text>
+          <View style={styles.headerRight}>
+            {goalStreak > 0 && (
+              <View style={styles.streakBadge}>
+                <Ionicons name="flame" size={14} color="#FF6B35" />
+                <Text style={styles.streakText}>{goalStreak}</Text>
+              </View>
+            )}
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>
+                {driverName.charAt(0).toUpperCase()}
+              </Text>
+            </View>
           </View>
         </View>
 
-        <View style={styles.profitCard}>
+        {/* Profit card — color changes with goal progress */}
+        <View style={[styles.profitCard, { backgroundColor: cardBg }]}>
           <View style={styles.profitGlow} />
+
+          <View style={styles.statusRow}>
+            <Ionicons name={statusIcon} size={16} color="rgba(0,0,0,0.55)" />
+            <Text style={styles.statusLabel}>{statusLabel}</Text>
+          </View>
+
           <Text style={styles.profitLabel}>Lucro Líquido Hoje</Text>
           <Text style={styles.profitAmount}>R$ {todayNetProfit}</Text>
+
           <View style={styles.profitFooter}>
             <View>
               <Text style={styles.profitGoalLabel}>Meta diária</Text>
@@ -95,6 +127,7 @@ export default function HomeScreen() {
               </Text>
             </View>
           </View>
+
           <View style={styles.progressTrack}>
             <View
               style={[
@@ -105,41 +138,39 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* Stats grid */}
         <View style={styles.statsGrid}>
-          {[
-            {
-              label: "Horas Online",
-              value: `${hoursOnlineToday}h`,
-              icon: "time-outline",
-            },
-            {
-              label: "KM Rodados",
-              value: totalKmToday.toFixed(1),
-              icon: "speedometer-outline",
-            },
-            {
-              label: "Combustível",
-              value: `R$ ${todayExpenses}`,
-              icon: "water-outline",
-            },
-            {
-              label: "Corridas",
-              value: `${todayRides.length}`,
-              icon: "navigate-outline",
-            },
-          ].map(({ label, value, icon }) => (
-            <View key={label} style={styles.statCard}>
-              <Ionicons name={icon as any} size={18} color={MUTED} />
-              <Text style={styles.statLabel}>{label}</Text>
-              <Text style={styles.statValue}>{value}</Text>
-            </View>
-          ))}
+          <StatCard
+            label="Horas Online"
+            value={`${hoursOnlineToday}h`}
+            icon="time-outline"
+            sub={earningsPerHour > 0 ? `R$ ${earningsPerHour}/h` : undefined}
+            highlight={earningsPerHour >= 60}
+          />
+          <StatCard
+            label="KM Rodados"
+            value={totalKmToday > 0 ? totalKmToday.toFixed(1) : "0"}
+            icon="speedometer-outline"
+          />
+          <StatCard
+            label="Combustível"
+            value={`R$ ${todayExpenses}`}
+            icon="water-outline"
+            danger={todayExpenses > dailyGoal * 0.3}
+          />
+          <StatCard
+            label="Corridas"
+            value={`${todayRides.length}`}
+            icon="navigate-outline"
+            highlight={todayRides.length >= 10}
+          />
         </View>
 
+        {/* Quick actions */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Ações Rápidas</Text>
-            <Ionicons name="flash" size={22} color={YELLOW} />
+            <Ionicons name="flash" size={20} color={YELLOW} />
           </View>
           <View style={styles.actionsRow}>
             <Pressable
@@ -150,7 +181,7 @@ export default function HomeScreen() {
               ]}
               onPress={handleAddEarnings}
             >
-              <Ionicons name="add-circle-outline" size={20} color="#000" />
+              <Ionicons name="add-circle-outline" size={18} color="#000" />
               <Text style={styles.actionBtnPrimaryText}>+ Corrida R$50</Text>
             </Pressable>
             <Pressable
@@ -161,12 +192,13 @@ export default function HomeScreen() {
               ]}
               onPress={handleAddFuel}
             >
-              <Ionicons name="water-outline" size={20} color="#FFF" />
+              <Ionicons name="water-outline" size={18} color="#FFF" />
               <Text style={styles.actionBtnSecondaryText}>+ Combustível</Text>
             </Pressable>
           </View>
         </View>
 
+        {/* Weekly chart */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <View>
@@ -179,21 +211,27 @@ export default function HomeScreen() {
               </View>
             )}
           </View>
+
           <View style={styles.chart}>
             {weeklyData.map((val, i) => {
-              const barH = maxWeekly > 0 ? (val / maxWeekly) * CHART_HEIGHT : 4;
+              const barH = (val / maxWeekly) * CHART_HEIGHT;
               const isToday = i === 6;
               return (
                 <View key={i} style={styles.barWrapper}>
+                  {val > 0 && (
+                    <Text style={styles.barVal}>
+                      {val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val}
+                    </Text>
+                  )}
                   <View
                     style={[
                       styles.bar,
                       {
-                        height: Math.max(barH, 4),
+                        height: Math.max(val > 0 ? barH : 4, 4),
                         backgroundColor: isToday
-                          ? YELLOW
+                          ? cardBg
                           : val > 0
-                          ? "rgba(250, 204, 21, 0.4)"
+                          ? "rgba(250, 204, 21, 0.35)"
                           : BORDER,
                       },
                     ]}
@@ -202,41 +240,117 @@ export default function HomeScreen() {
               );
             })}
           </View>
+
           <View style={styles.chartLabels}>
-            {DAYS.map((d) => (
-              <Text key={d} style={styles.chartLabel}>
+            {DAYS.map((d, i) => (
+              <Text
+                key={d}
+                style={[
+                  styles.chartLabel,
+                  i === 6 && { color: YELLOW, fontFamily: "Inter_700Bold" },
+                ]}
+              >
                 {d}
               </Text>
             ))}
           </View>
         </View>
 
+        {/* Daily summary */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Resumo do Dia</Text>
-            <Ionicons name="bulb-outline" size={22} color={YELLOW} />
+            <Ionicons name="bulb-outline" size={20} color={YELLOW} />
           </View>
-          {[
-            {
-              label: "Ganhos brutos",
-              value: `R$ ${todayEarnings}`,
-            },
-            {
-              label: "Total de gastos",
-              value: `R$ ${todayExpenses}`,
-            },
-            {
-              label: "Lucro líquido",
-              value: `R$ ${todayNetProfit}`,
-            },
-          ].map(({ label, value }) => (
-            <View key={label} style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>{label}</Text>
-              <Text style={styles.summaryValue}>{value}</Text>
+
+          <SummaryRow
+            label="Ganhos brutos"
+            value={`R$ ${todayEarnings}`}
+            color="#22C55E"
+          />
+          <SummaryRow
+            label="Total de gastos"
+            value={`R$ ${todayExpenses}`}
+            color="#EF4444"
+          />
+          <SummaryRow
+            label="Lucro líquido"
+            value={`R$ ${todayNetProfit}`}
+            color={cardBg}
+            bold
+          />
+          {earningsPerHour > 0 && (
+            <SummaryRow
+              label="Média por hora"
+              value={`R$ ${earningsPerHour}/h`}
+              color={YELLOW}
+            />
+          )}
+          {goalStreak > 0 && (
+            <View style={styles.streakRow}>
+              <Ionicons name="flame" size={16} color="#FF6B35" />
+              <Text style={styles.streakRowText}>
+                {goalStreak === 1
+                  ? "Você bateu a meta hoje!"
+                  : `${goalStreak} dias seguidos batendo a meta!`}
+              </Text>
             </View>
-          ))}
+          )}
         </View>
       </ScrollView>
+    </View>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  icon,
+  sub,
+  highlight,
+  danger,
+}: {
+  label: string;
+  value: string;
+  icon: string;
+  sub?: string;
+  highlight?: boolean;
+  danger?: boolean;
+}) {
+  const valueColor = danger ? "#EF4444" : highlight ? "#22C55E" : YELLOW;
+  return (
+    <View style={[styles.statCard, danger && styles.statCardDanger]}>
+      <Ionicons name={icon as any} size={16} color={MUTED} />
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.statValue, { color: valueColor }]}>{value}</Text>
+      {sub && <Text style={styles.statSub}>{sub}</Text>}
+    </View>
+  );
+}
+
+function SummaryRow({
+  label,
+  value,
+  color,
+  bold,
+}: {
+  label: string;
+  value: string;
+  color: string;
+  bold?: boolean;
+}) {
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text
+        style={[
+          styles.summaryValue,
+          { color },
+          bold && { fontSize: 16 },
+        ]}
+      >
+        {value}
+      </Text>
     </View>
   );
 }
@@ -254,32 +368,47 @@ const styles = StyleSheet.create({
     padding: 20,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 12,
   },
-  greeting: { color: MUTED, fontSize: 13, fontFamily: "Inter_400Regular" },
+  greeting: { color: MUTED, fontSize: 12, fontFamily: "Inter_400Regular" },
   appTitle: {
     color: "#FFF",
-    fontSize: 22,
+    fontSize: 20,
     fontFamily: "Inter_700Bold",
-    letterSpacing: 1,
-    marginTop: 4,
+    letterSpacing: 0.5,
+    marginTop: 3,
   },
   appTitleAccent: { color: YELLOW },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  streakBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,107,53,0.15)",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    gap: 4,
+  },
+  streakText: {
+    color: "#FF6B35",
+    fontSize: 13,
+    fontFamily: "Inter_700Bold",
+  },
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
+    width: 46,
+    height: 46,
+    borderRadius: 16,
     backgroundColor: YELLOW,
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: { color: "#000", fontSize: 24, fontFamily: "Inter_700Bold" },
+  avatarText: { color: "#000", fontSize: 20, fontFamily: "Inter_700Bold" },
 
   profitCard: {
-    backgroundColor: YELLOW,
     borderRadius: 32,
     padding: 24,
     overflow: "hidden",
+    gap: 4,
   },
   profitGlow: {
     position: "absolute",
@@ -288,34 +417,45 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: "rgba(255,255,255,0.25)",
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginBottom: 4,
+  },
+  statusLabel: {
+    color: "rgba(0,0,0,0.55)",
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
   },
   profitLabel: {
-    color: "rgba(0,0,0,0.6)",
-    fontSize: 14,
-    fontFamily: "Inter_500Medium",
+    color: "rgba(0,0,0,0.55)",
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
   },
   profitAmount: {
     color: "#000",
-    fontSize: 52,
+    fontSize: 50,
     fontFamily: "Inter_700Bold",
     letterSpacing: -1,
-    marginTop: 6,
+    marginTop: 2,
   },
   profitFooter: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 20,
+    marginTop: 18,
   },
   profitGoalLabel: {
-    color: "rgba(0,0,0,0.55)",
+    color: "rgba(0,0,0,0.5)",
     fontSize: 12,
     fontFamily: "Inter_400Regular",
   },
   profitGoalValue: {
     color: "#000",
-    fontSize: 17,
+    fontSize: 16,
     fontFamily: "Inter_700Bold",
     marginTop: 2,
   },
@@ -327,26 +467,28 @@ const styles = StyleSheet.create({
   },
   progressBadgeText: { color: "#000", fontSize: 20, fontFamily: "Inter_700Bold" },
   progressTrack: {
-    height: 12,
+    height: 10,
     backgroundColor: "rgba(0,0,0,0.12)",
-    borderRadius: 6,
-    marginTop: 14,
+    borderRadius: 5,
+    marginTop: 12,
     overflow: "hidden",
   },
-  progressFill: { height: 12, backgroundColor: "#000", borderRadius: 6 },
+  progressFill: { height: 10, backgroundColor: "#000", borderRadius: 5 },
 
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   statCard: {
     width: "48%",
     backgroundColor: CARD,
-    borderRadius: 24,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: BORDER,
-    padding: 18,
-    gap: 8,
+    padding: 16,
+    gap: 6,
   },
-  statLabel: { color: MUTED, fontSize: 12, fontFamily: "Inter_400Regular" },
-  statValue: { color: YELLOW, fontSize: 26, fontFamily: "Inter_700Bold" },
+  statCardDanger: { borderColor: "rgba(239,68,68,0.3)" },
+  statLabel: { color: MUTED, fontSize: 11, fontFamily: "Inter_400Regular" },
+  statValue: { fontSize: 24, fontFamily: "Inter_700Bold" },
+  statSub: { color: "#22C55E", fontSize: 11, fontFamily: "Inter_600SemiBold" },
 
   card: {
     backgroundColor: CARD,
@@ -354,19 +496,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BORDER,
     padding: 20,
-    gap: 14,
+    gap: 12,
   },
   cardHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
   },
-  cardTitle: { color: "#FFF", fontSize: 17, fontFamily: "Inter_700Bold" },
+  cardTitle: { color: "#FFF", fontSize: 16, fontFamily: "Inter_700Bold" },
   cardSubtitle: {
     color: MUTED,
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: "Inter_400Regular",
-    marginTop: 3,
+    marginTop: 2,
   },
 
   actionsRow: { flexDirection: "row", gap: 10 },
@@ -375,8 +517,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
-    borderRadius: 18,
+    paddingVertical: 13,
+    borderRadius: 16,
     gap: 6,
   },
   actionBtnPrimary: { backgroundColor: YELLOW },
@@ -387,28 +529,35 @@ const styles = StyleSheet.create({
 
   badge: {
     backgroundColor: YELLOW_DIM,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
   },
-  badgeText: { color: YELLOW, fontSize: 12, fontFamily: "Inter_700Bold" },
+  badgeText: { color: YELLOW, fontSize: 11, fontFamily: "Inter_700Bold" },
 
   chart: {
     height: CHART_HEIGHT,
     flexDirection: "row",
     alignItems: "flex-end",
-    gap: 6,
+    gap: 5,
   },
   barWrapper: {
     flex: 1,
     height: CHART_HEIGHT,
     justifyContent: "flex-end",
+    alignItems: "center",
+    gap: 3,
   },
-  bar: { borderTopLeftRadius: 10, borderTopRightRadius: 10 },
-  chartLabels: { flexDirection: "row", justifyContent: "space-between" },
+  barVal: {
+    color: MUTED,
+    fontSize: 8,
+    fontFamily: "Inter_500Medium",
+  },
+  bar: { width: "100%", borderTopLeftRadius: 8, borderTopRightRadius: 8 },
+  chartLabels: { flexDirection: "row" },
   chartLabel: {
     color: MUTED,
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: "Inter_600SemiBold",
     flex: 1,
     textAlign: "center",
@@ -418,11 +567,27 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.3)",
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    backgroundColor: "rgba(0,0,0,0.25)",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  summaryLabel: { color: MUTED, fontSize: 14, fontFamily: "Inter_400Regular" },
-  summaryValue: { color: YELLOW, fontSize: 14, fontFamily: "Inter_700Bold" },
+  summaryLabel: { color: MUTED, fontSize: 13, fontFamily: "Inter_400Regular" },
+  summaryValue: { fontSize: 14, fontFamily: "Inter_700Bold" },
+
+  streakRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(255,107,53,0.1)",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  streakRowText: {
+    color: "#FF6B35",
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+    flex: 1,
+  },
 });

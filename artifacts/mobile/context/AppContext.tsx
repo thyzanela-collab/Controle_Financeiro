@@ -33,6 +33,9 @@ type AppData = {
 };
 
 type AppContextType = AppData & {
+  goalStreak: number;
+  earningsPerHour: number;
+  goalStatus: "danger" | "warning" | "good" | "great";
   addRide: (r: Omit<Ride, "id" | "date" | "time">) => void;
   updateRide: (id: string, r: Partial<Omit<Ride, "id">>) => void;
   removeRide: (id: string) => void;
@@ -187,6 +190,39 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     data.rides.filter((r) => r.date === day).reduce((s, r) => s + r.value, 0)
   );
 
+  const earningsPerHour =
+    hoursOnlineToday > 0
+      ? Math.round(todayEarnings / hoursOnlineToday)
+      : 0;
+
+  const pct = data.dailyGoal > 0 ? (todayNetProfit / data.dailyGoal) * 100 : 0;
+  const goalStatus: "danger" | "warning" | "good" | "great" =
+    pct >= 100 ? "great" : pct >= 70 ? "good" : pct >= 30 ? "warning" : "danger";
+
+  // Count consecutive days (backwards from yesterday) where net profit >= goal
+  let goalStreak = 0;
+  if (data.dailyGoal > 0) {
+    let i = 1;
+    while (true) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().slice(0, 10);
+      const dayRides = data.rides.filter((r) => r.date === dateStr);
+      const dayExp = data.expenses.filter((e) => e.date === dateStr);
+      const dayProfit =
+        dayRides.reduce((s, r) => s + r.value, 0) -
+        dayExp.reduce((s, e) => s + e.amount, 0);
+      if (dayProfit >= data.dailyGoal) {
+        goalStreak++;
+        i++;
+      } else {
+        break;
+      }
+    }
+    // Also count today if goal met
+    if (todayNetProfit >= data.dailyGoal) goalStreak++;
+  }
+
   if (!loaded) return null;
 
   return (
@@ -201,6 +237,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         removeExpense,
         setDailyGoal,
         setDriverName,
+        earningsPerHour,
+        goalStatus,
+        goalStreak,
         todayEarnings,
         todayExpenses,
         todayNetProfit,
