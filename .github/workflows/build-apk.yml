@@ -27,19 +27,14 @@ jobs:
       - name: Clean install
         run: rm -rf node_modules pnpm-lock.yaml
 
-       - name: Clean install
-  run: rm -rf node_modules pnpm-lock.yaml
-
-  - run: pnpm install --no-frozen-lockfile
-
       - name: Install dependencies (root)
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Install mobile dependencies
         working-directory: artifacts/mobile
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
-      - name: Build APK (EAS Cloud)
+      - name: Build APK
         working-directory: artifacts/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
