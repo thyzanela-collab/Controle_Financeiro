@@ -100,7 +100,7 @@ function clearMetroCache() {
 
   const cacheDirs = [
     path.join(projectRoot, ".metro-cache"),
-    path.join(projectRoot, "node_modules/.cache/metro"),
+    path.join(projectRoot,
   ];
 
   for (const dir of cacheDirs) {
