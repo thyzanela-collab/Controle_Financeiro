@@ -19,7 +19,11 @@ jobs:
       
       - name: Install EAS CLI only
         run: npm install -g eas-cli
-      
+
+      - name: Install mobile dependencies
+  working-directory: artifacts/mobile
+  run: pnpm install
+
       - name: Build APK with EAS (cloud build)
         working-directory: artifacts/mobile
         env:
