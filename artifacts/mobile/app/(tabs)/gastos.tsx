@@ -26,9 +26,10 @@ const RED = "#EF4444";
 const RED_DIM = "rgba(239,68,68,0.12)";
 
 const CATEGORIES: { key: Expense["category"]; label: string; icon: string }[] = [
-  { key: "fuel",        label: "Combustível", icon: "water-outline" },
-  { key: "maintenance", label: "Manutenção",  icon: "construct-outline" },
-  { key: "other",       label: "Outros",      icon: "receipt-outline" },
+  { key: "fuel",  label: "Combustível", icon: "water-outline" },
+  { key: "food",  label: "Alimentação", icon: "fast-food-outline" },
+  { key: "toll",  label: "Pedágio",     icon: "car-outline" },
+  { key: "other", label: "Outros",      icon: "receipt-outline" },
 ];
 
 function platformConfirm(msg: string, onConfirm: () => void) {

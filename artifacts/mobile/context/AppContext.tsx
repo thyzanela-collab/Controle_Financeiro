@@ -35,7 +35,7 @@ export type Expense = {
   time: string;
   label: string;
   amount: number;
-  category: "fuel" | "maintenance" | "other";
+  category: "fuel" | "food" | "toll" | "other";
 };
 
 type AppData = {
