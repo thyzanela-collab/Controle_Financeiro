@@ -5,7 +5,9 @@
   },
   "build": {
     "production": {
-      "workingDirectory": "artifacts/mobile"
+      "android": {
+        "buildType": "apk"
+      }
     }
   }
 }
