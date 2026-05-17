@@ -22,16 +22,20 @@ jobs:
         with:
           version: 8
       
-      - name: Remove lockfiles
-        run: rm -f pnpm-lock.yaml yarn.lock package-lock.json
+      - name: Navigate to mobile directory
+        working-directory: artifacts/mobile
+        run: pwd
       
-      - name: Install dependencies
-        run: cd artifacts/mobile && pnpm install
+      - name: Install dependencies for mobile app
+        working-directory: artifacts/mobile
+        run: |
+          rm -f pnpm-lock.yaml
+          pnpm install
       
       - name: Install EAS CLI
-        run: pnpm add -g eas-cli
+        run: npm install -g eas-cli
       
-      - name: Build APK
+      - name: Build APK with EAS
         working-directory: artifacts/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -42,3 +46,4 @@ jobs:
         with:
           name: android-apk
           path: artifacts/mobile/**/*.apk
+          if-no-files-found: warn
