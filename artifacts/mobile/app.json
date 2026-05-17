@@ -3,16 +3,9 @@
     "name": "Controle Financeiro",
     "slug": "controle-financeiro",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "scheme": "controlefinanceiro",
-    "userInterfaceStyle": "dark",
-
     "android": {
       "package": "com.controlefinanceiro.app"
     },
-
-    "plugins": [
-      "expo-router"
-    ]
+    "plugins": ["expo-router"]
   }
 }
