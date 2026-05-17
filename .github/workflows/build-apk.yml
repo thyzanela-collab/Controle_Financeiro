@@ -25,10 +25,10 @@ jobs:
   run: pnpm install
 
       - name: Build APK with EAS (cloud build)
-        working-directory: artifacts/mobile
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: npx eas-cli build --platform android --non-interactive
+  working-directory: artifacts/mobile
+  env:
+    EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+  run: npx eas-cli build --platform android --profile production --non-interactive
       
       - name: Download APK
         working-directory: artifacts/mobile
