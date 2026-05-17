@@ -2,18 +2,16 @@ name: Build APK Android
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 18
@@ -25,17 +23,11 @@ jobs:
         run: npm install -g eas-cli
 
       - name: Install dependencies
+        working-directory: artifacts/mobile
         run: pnpm install --no-frozen-lockfile
 
-      - name: Debug folders
-        run: |
-          ls
-          ls artifacts
-          ls artifacts/mobile
-
       - name: Build APK
-        run: |
-          cd artifacts/mobile
-          eas build --platform android --profile production --non-interactive
+        working-directory: artifacts/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas build --platform android --profile production --non-interactive
