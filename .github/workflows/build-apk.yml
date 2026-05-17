@@ -17,18 +17,16 @@ jobs:
         with:
           node-version: '18'
       
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
-      
-      - name: Install dependencies only for mobile app
-        working-directory: artifacts/mobile
+      - name: Delete corrupted lockfiles
         run: |
-          rm -f pnpm-lock.yaml
-          npm install
+          rm -f pnpm-lock.yaml package-lock.json yarn.lock
+          rm -f artifacts/mobile/pnpm-lock.yaml artifacts/mobile/package-lock.json artifacts/mobile/yarn.lock
       
-      - name: Install EAS CLI
+      - name: Install npm dependencies for mobile only
+        working-directory: artifacts/mobile
+        run: npm install
+      
+      - name: Install EAS CLI globally
         run: npm install -g eas-cli
       
       - name: Build APK with EAS
