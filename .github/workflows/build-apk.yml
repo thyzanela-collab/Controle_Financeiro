@@ -17,19 +17,16 @@ jobs:
         with:
           node-version: '18'
       
-      - name: Clean root lockfiles
-        run: |
-          rm -f pnpm-lock.yaml package-lock.json yarn.lock
-      
-      - name: Install dependencies for mobile app with npm
-        working-directory: artifacts/mobile
-        run: |
-          npm install
+      - name: Install pnpm
+        run: npm install -g pnpm@8
       
       - name: Install EAS CLI
         run: npm install -g eas-cli
       
-      - name: Build APK with EAS
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build APK
         working-directory: artifacts/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
