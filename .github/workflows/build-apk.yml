@@ -9,29 +9,30 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-      
-      - name: Install EAS CLI only
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install EAS CLI
         run: npm install -g eas-cli
 
       - name: Install mobile dependencies
-  working-directory: artifacts/mobile
-  run: pnpm install
+        working-directory: artifacts/mobile
+        run: pnpm install
 
       - name: Build APK with EAS (cloud build)
-  working-directory: artifacts/mobile
-  env:
-    EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-  run: npx eas-cli build --platform android --profile production --non-interactive
-
-      - name: Download APK
         working-directory: artifacts/mobile
-        run: |
-          echo "Build completed successfully!"
-          ls -la
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx eas-cli build --platform android --profile production --non-interactive
+
+      - name: Finish
+        run: echo "APK build started successfully!"
