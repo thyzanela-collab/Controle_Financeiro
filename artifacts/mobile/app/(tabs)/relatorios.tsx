@@ -54,7 +54,9 @@ export default function RelatoriosScreen() {
   const dayLabels = getLast7DayLabels();
 
   const fuelExpenses = expenses.filter((e) => e.category === "fuel").reduce((s, e) => s + e.amount, 0);
-  const maintenanceExpenses = expenses.filter((e) => e.category === "maintenance").reduce((s, e) => s + e.amount, 0);
+  const foodExpenses = expenses.filter((e) => e.category === "food").reduce((s, e) => s + e.amount, 0);
+  const tollExpenses = expenses.filter((e) => e.category === "toll").reduce((s, e) => s + e.amount, 0);
+  const otherExpenses = expenses.filter((e) => e.category === "other").reduce((s, e) => s + e.amount, 0);
 
   const goalProgress = dailyGoal > 0 ? Math.min((todayNetProfit / dailyGoal) * 100, 100) : 0;
 
@@ -177,9 +179,10 @@ export default function RelatoriosScreen() {
             <Ionicons name="pie-chart-outline" size={20} color={MUTED} />
           </View>
           {[
-            { label: "Combustível", value: fuelExpenses,                                  icon: "water-outline",    color: YELLOW },
-            { label: "Manutenção",  value: maintenanceExpenses,                           icon: "construct-outline", color: "#F97316" },
-            { label: "Outros",      value: totalExpenses - fuelExpenses - maintenanceExpenses, icon: "receipt-outline", color: MUTED },
+            { label: "Combustível", value: fuelExpenses,  icon: "water-outline",     color: YELLOW },
+            { label: "Alimentação", value: foodExpenses,  icon: "fast-food-outline", color: "#F97316" },
+            { label: "Pedágio",     value: tollExpenses,  icon: "car-outline",       color: BLUE },
+            { label: "Outros",      value: otherExpenses, icon: "receipt-outline",   color: MUTED },
           ].map(({ label, value, icon, color }) => (
             <View key={label} style={s.breakdownRow}>
               <View style={[s.breakdownIcon, { backgroundColor: `${color}18` }]}>
