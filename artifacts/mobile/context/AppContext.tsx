@@ -7,13 +7,26 @@ import React, {
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export type Ride = {
+export type EarningEntry = {
   id: string;
   date: string;
   time: string;
-  value: number;
+  type: "uber99" | "particular" | "gorjeta";
+  amount: number;
+};
+
+export type KmEntry = {
+  id: string;
+  date: string;
+  time: string;
   km: number;
-  durationMin: number;
+};
+
+export type HoursEntry = {
+  id: string;
+  date: string;
+  time: string;
+  hours: number;
 };
 
 export type Expense = {
@@ -26,8 +39,10 @@ export type Expense = {
 };
 
 type AppData = {
-  rides: Ride[];
+  earnings: EarningEntry[];
   expenses: Expense[];
+  kmEntries: KmEntry[];
+  hoursEntries: HoursEntry[];
   dailyGoal: number;
   driverName: string;
 };
@@ -36,31 +51,40 @@ type AppContextType = AppData & {
   goalStreak: number;
   earningsPerHour: number;
   goalStatus: "danger" | "warning" | "good" | "great";
-  clearAllData: () => void;
-  addRide: (r: Omit<Ride, "id" | "date" | "time">) => void;
-  updateRide: (id: string, r: Partial<Omit<Ride, "id">>) => void;
-  removeRide: (id: string) => void;
-  addExpense: (e: Omit<Expense, "id" | "date" | "time">) => void;
-  updateExpense: (id: string, e: Partial<Omit<Expense, "id">>) => void;
-  removeExpense: (id: string) => void;
-  setDailyGoal: (goal: number) => void;
-  setDriverName: (name: string) => void;
   todayEarnings: number;
   todayExpenses: number;
   todayNetProfit: number;
-  todayRides: Ride[];
+  todayEarningList: EarningEntry[];
   todayExpenseList: Expense[];
-  weeklyData: number[];
+  todayKmEntries: KmEntry[];
+  todayHoursEntries: HoursEntry[];
   totalKmToday: number;
-  avgPerRide: number;
   hoursOnlineToday: number;
+  weeklyData: number[];
+  addEarning: (e: Omit<EarningEntry, "id" | "date" | "time">) => void;
+  updateEarning: (id: string, e: Partial<Omit<EarningEntry, "id">>) => void;
+  removeEarning: (id: string) => void;
+  addExpense: (e: Omit<Expense, "id" | "date" | "time">) => void;
+  updateExpense: (id: string, e: Partial<Omit<Expense, "id">>) => void;
+  removeExpense: (id: string) => void;
+  addKmEntry: (km: number) => void;
+  updateKmEntry: (id: string, km: number) => void;
+  removeKmEntry: (id: string) => void;
+  addHoursEntry: (hours: number) => void;
+  updateHoursEntry: (id: string, hours: number) => void;
+  removeHoursEntry: (id: string) => void;
+  setDailyGoal: (goal: number) => void;
+  setDriverName: (name: string) => void;
+  clearAllData: () => void;
 };
 
-const STORAGE_KEY = "@controle_financeiro_data";
+const STORAGE_KEY = "@controle_financeiro_v2";
 
 const defaultData: AppData = {
-  rides: [],
+  earnings: [],
   expenses: [],
+  kmEntries: [],
+  hoursEntries: [],
   dailyGoal: 600,
   driverName: "Motorista",
 };
@@ -100,7 +124,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
       if (raw) {
         try {
-          setData(JSON.parse(raw));
+          const parsed = JSON.parse(raw);
+          setData({
+            ...defaultData,
+            ...parsed,
+            earnings: parsed.earnings ?? [],
+            expenses: parsed.expenses ?? [],
+            kmEntries: parsed.kmEntries ?? [],
+            hoursEntries: parsed.hoursEntries ?? [],
+          });
         } catch {
           setData(defaultData);
         }
@@ -114,42 +146,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }, [data, loaded]);
 
-  const addRide = useCallback(
-    (r: Omit<Ride, "id" | "date" | "time">) => {
-      const newRide: Ride = {
-        ...r,
-        id: genId(),
-        date: todayStr(),
-        time: nowTimeStr(),
-      };
-      setData((prev) => ({ ...prev, rides: [newRide, ...prev.rides] }));
-    },
-    []
-  );
-
-  const updateRide = useCallback((id: string, changes: Partial<Omit<Ride, "id">>) => {
+  const addEarning = useCallback((e: Omit<EarningEntry, "id" | "date" | "time">) => {
     setData((prev) => ({
       ...prev,
-      rides: prev.rides.map((r) => (r.id === id ? { ...r, ...changes } : r)),
+      earnings: [{ ...e, id: genId(), date: todayStr(), time: nowTimeStr() }, ...prev.earnings],
     }));
   }, []);
 
-  const removeRide = useCallback((id: string) => {
-    setData((prev) => ({ ...prev, rides: prev.rides.filter((r) => r.id !== id) }));
+  const updateEarning = useCallback((id: string, changes: Partial<Omit<EarningEntry, "id">>) => {
+    setData((prev) => ({
+      ...prev,
+      earnings: prev.earnings.map((e) => (e.id === id ? { ...e, ...changes } : e)),
+    }));
   }, []);
 
-  const addExpense = useCallback(
-    (e: Omit<Expense, "id" | "date" | "time">) => {
-      const newExp: Expense = {
-        ...e,
-        id: genId(),
-        date: todayStr(),
-        time: nowTimeStr(),
-      };
-      setData((prev) => ({ ...prev, expenses: [newExp, ...prev.expenses] }));
-    },
-    []
-  );
+  const removeEarning = useCallback((id: string) => {
+    setData((prev) => ({ ...prev, earnings: prev.earnings.filter((e) => e.id !== id) }));
+  }, []);
+
+  const addExpense = useCallback((e: Omit<Expense, "id" | "date" | "time">) => {
+    setData((prev) => ({
+      ...prev,
+      expenses: [{ ...e, id: genId(), date: todayStr(), time: nowTimeStr() }, ...prev.expenses],
+    }));
+  }, []);
 
   const updateExpense = useCallback((id: string, changes: Partial<Omit<Expense, "id">>) => {
     setData((prev) => ({
@@ -159,10 +179,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const removeExpense = useCallback((id: string) => {
+    setData((prev) => ({ ...prev, expenses: prev.expenses.filter((e) => e.id !== id) }));
+  }, []);
+
+  const addKmEntry = useCallback((km: number) => {
     setData((prev) => ({
       ...prev,
-      expenses: prev.expenses.filter((e) => e.id !== id),
+      kmEntries: [{ id: genId(), date: todayStr(), time: nowTimeStr(), km }, ...prev.kmEntries],
     }));
+  }, []);
+
+  const updateKmEntry = useCallback((id: string, km: number) => {
+    setData((prev) => ({
+      ...prev,
+      kmEntries: prev.kmEntries.map((k) => (k.id === id ? { ...k, km } : k)),
+    }));
+  }, []);
+
+  const removeKmEntry = useCallback((id: string) => {
+    setData((prev) => ({ ...prev, kmEntries: prev.kmEntries.filter((k) => k.id !== id) }));
+  }, []);
+
+  const addHoursEntry = useCallback((hours: number) => {
+    setData((prev) => ({
+      ...prev,
+      hoursEntries: [{ id: genId(), date: todayStr(), time: nowTimeStr(), hours }, ...prev.hoursEntries],
+    }));
+  }, []);
+
+  const updateHoursEntry = useCallback((id: string, hours: number) => {
+    setData((prev) => ({
+      ...prev,
+      hoursEntries: prev.hoursEntries.map((h) => (h.id === id ? { ...h, hours } : h)),
+    }));
+  }, []);
+
+  const removeHoursEntry = useCallback((id: string) => {
+    setData((prev) => ({ ...prev, hoursEntries: prev.hoursEntries.filter((h) => h.id !== id) }));
   }, []);
 
   const setDailyGoal = useCallback((goal: number) => {
@@ -182,33 +235,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const today = todayStr();
-  const todayRides = data.rides.filter((r) => r.date === today);
+  const todayEarningList = data.earnings.filter((e) => e.date === today);
   const todayExpenseList = data.expenses.filter((e) => e.date === today);
-  const todayEarnings = todayRides.reduce((s, r) => s + r.value, 0);
+  const todayKmEntries = data.kmEntries.filter((k) => k.date === today);
+  const todayHoursEntries = data.hoursEntries.filter((h) => h.date === today);
+
+  const todayEarnings = todayEarningList.reduce((s, e) => s + e.amount, 0);
   const todayExpenses = todayExpenseList.reduce((s, e) => s + e.amount, 0);
   const todayNetProfit = todayEarnings - todayExpenses;
-  const totalKmToday = todayRides.reduce((s, r) => s + r.km, 0);
-  const avgPerRide =
-    todayRides.length > 0 ? Math.round(todayEarnings / todayRides.length) : 0;
+  const totalKmToday = todayKmEntries.reduce((s, k) => s + k.km, 0);
   const hoursOnlineToday = parseFloat(
-    (todayRides.reduce((s, r) => s + r.durationMin, 0) / 60).toFixed(1)
+    todayHoursEntries.reduce((s, h) => s + h.hours, 0).toFixed(1)
   );
+  const earningsPerHour =
+    hoursOnlineToday > 0 ? Math.round(todayEarnings / hoursOnlineToday) : 0;
 
   const last7 = getLast7Days();
   const weeklyData = last7.map((day) =>
-    data.rides.filter((r) => r.date === day).reduce((s, r) => s + r.value, 0)
+    data.earnings.filter((e) => e.date === day).reduce((s, e) => s + e.amount, 0)
   );
-
-  const earningsPerHour =
-    hoursOnlineToday > 0
-      ? Math.round(todayEarnings / hoursOnlineToday)
-      : 0;
 
   const pct = data.dailyGoal > 0 ? (todayNetProfit / data.dailyGoal) * 100 : 0;
   const goalStatus: "danger" | "warning" | "good" | "great" =
     pct >= 100 ? "great" : pct >= 70 ? "good" : pct >= 30 ? "warning" : "danger";
 
-  // Count consecutive days (backwards from yesterday) where net profit >= goal
   let goalStreak = 0;
   if (data.dailyGoal > 0) {
     let i = 1;
@@ -216,19 +266,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().slice(0, 10);
-      const dayRides = data.rides.filter((r) => r.date === dateStr);
-      const dayExp = data.expenses.filter((e) => e.date === dateStr);
-      const dayProfit =
-        dayRides.reduce((s, r) => s + r.value, 0) -
-        dayExp.reduce((s, e) => s + e.amount, 0);
-      if (dayProfit >= data.dailyGoal) {
+      const dayEarnings = data.earnings.filter((e) => e.date === dateStr).reduce((s, e) => s + e.amount, 0);
+      const dayExpenses = data.expenses.filter((e) => e.date === dateStr).reduce((s, e) => s + e.amount, 0);
+      if (dayEarnings - dayExpenses >= data.dailyGoal) {
         goalStreak++;
         i++;
       } else {
         break;
       }
     }
-    // Also count today if goal met
     if (todayNetProfit >= data.dailyGoal) goalStreak++;
   }
 
@@ -238,27 +284,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <AppContext.Provider
       value={{
         ...data,
-        addRide,
-        updateRide,
-        removeRide,
-        addExpense,
-        updateExpense,
-        removeExpense,
-        setDailyGoal,
-        setDriverName,
-        clearAllData,
+        goalStreak,
         earningsPerHour,
         goalStatus,
-        goalStreak,
         todayEarnings,
         todayExpenses,
         todayNetProfit,
-        todayRides,
+        todayEarningList,
         todayExpenseList,
-        weeklyData,
+        todayKmEntries,
+        todayHoursEntries,
         totalKmToday,
-        avgPerRide,
         hoursOnlineToday,
+        weeklyData,
+        addEarning,
+        updateEarning,
+        removeEarning,
+        addExpense,
+        updateExpense,
+        removeExpense,
+        addKmEntry,
+        updateKmEntry,
+        removeKmEntry,
+        addHoursEntry,
+        updateHoursEntry,
+        removeHoursEntry,
+        setDailyGoal,
+        setDriverName,
+        clearAllData,
       }}
     >
       {children}

@@ -17,94 +17,79 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp, type Expense } from "@/context/AppContext";
 
 const YELLOW = "#FACC15";
-const YELLOW_DIM = "rgba(250, 204, 21, 0.15)";
+const YELLOW_DIM = "rgba(250,204,21,0.15)";
 const CARD = "#18181B";
 const BORDER = "#27272A";
 const MUTED = "#71717A";
 const BG = "#000000";
 const RED = "#EF4444";
-const RED_DIM = "rgba(239, 68, 68, 0.12)";
+const RED_DIM = "rgba(239,68,68,0.12)";
 
 const CATEGORIES: { key: Expense["category"]; label: string; icon: string }[] = [
-  { key: "fuel", label: "Combustível", icon: "water-outline" },
-  { key: "maintenance", label: "Manutenção", icon: "construct-outline" },
-  { key: "other", label: "Outros", icon: "receipt-outline" },
+  { key: "fuel",        label: "Combustível", icon: "water-outline" },
+  { key: "maintenance", label: "Manutenção",  icon: "construct-outline" },
+  { key: "other",       label: "Outros",      icon: "receipt-outline" },
 ];
 
-type FormMode = "add" | "edit";
+function platformConfirm(msg: string, onConfirm: () => void) {
+  if (Platform.OS === "web") {
+    if (window.confirm(msg)) onConfirm();
+  } else {
+    Alert.alert("Confirmar", msg, [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Remover", style: "destructive", onPress: onConfirm },
+    ]);
+  }
+}
 
 export default function GastosScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const { expenses, addExpense, updateExpense, removeExpense, todayExpenses, todayExpenseList } =
-    useApp();
+  const { expenses, addExpense, updateExpense, removeExpense, todayExpenses, todayExpenseList } = useApp();
 
-  const [formMode, setFormMode] = useState<FormMode | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState<Expense["category"]>("fuel");
 
-  const fuelTotal = todayExpenseList
-    .filter((e) => e.category === "fuel")
-    .reduce((s, e) => s + e.amount, 0);
+  const fuelTotal = todayExpenseList.filter((e) => e.category === "fuel").reduce((s, e) => s + e.amount, 0);
 
   function openAdd() {
-    setLabel("");
-    setAmount("");
-    setCategory("fuel");
-    setEditingId(null);
-    setFormMode("add");
+    setLabel(""); setAmount(""); setCategory("fuel");
+    setEditingId(null); setFormOpen(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
   function openEdit(exp: Expense) {
-    setLabel(exp.label);
-    setAmount(String(exp.amount));
-    setCategory(exp.category);
-    setEditingId(exp.id);
-    setFormMode("edit");
+    setLabel(exp.label); setAmount(String(exp.amount)); setCategory(exp.category);
+    setEditingId(exp.id); setFormOpen(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
-  function closeForm() {
-    setFormMode(null);
-    setEditingId(null);
-  }
+  function closeForm() { setFormOpen(false); setEditingId(null); }
 
   function handleSave() {
     const a = parseFloat(amount);
     if (!a || a <= 0) {
-      Alert.alert("Valor inválido", "Informe o valor do gasto.");
+      if (Platform.OS === "web") { window.alert("Informe um valor válido."); }
+      else { Alert.alert("Valor inválido", "Informe o valor do gasto."); }
       return;
     }
-    const finalLabel =
-      label.trim() || CATEGORIES.find((c) => c.key === category)!.label;
-
+    const finalLabel = label.trim() || CATEGORIES.find((c) => c.key === category)!.label;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-    if (formMode === "edit" && editingId) {
-      updateExpense(editingId, { label: finalLabel, amount: a, category });
-    } else {
-      addExpense({ label: finalLabel, amount: a, category });
-    }
+    if (editingId) { updateExpense(editingId, { label: finalLabel, amount: a, category }); }
+    else { addExpense({ label: finalLabel, amount: a, category }); }
     closeForm();
   }
 
   function handleRemove(id: string) {
-    Alert.alert("Remover gasto", "Tem certeza?", [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Remover",
-        style: "destructive",
-        onPress: () => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-          removeExpense(id);
-          if (editingId === id) closeForm();
-        },
-      },
-    ]);
+    platformConfirm("Remover este gasto?", () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      removeExpense(id);
+      if (editingId === id) closeForm();
+    });
   }
 
   return (
@@ -113,142 +98,108 @@ export default function GastosScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: topPad + 16, paddingBottom: 120 },
-        ]}
+        contentContainerStyle={[s.content, { paddingTop: topPad + 16, paddingBottom: 130 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.pageTitle}>Gastos</Text>
+        <Text style={s.pageTitle}>Gastos</Text>
 
-        {/* Summary card */}
-        <View style={styles.totalCard}>
-          <View style={styles.glowBg} />
-          <Text style={styles.totalLabel}>Total Hoje</Text>
-          <Text style={styles.totalAmount}>R$ {todayExpenses}</Text>
+        {/* Summary */}
+        <View style={s.summaryCard}>
+          <View style={s.cardGlow} />
+          <Text style={s.summaryLabel}>Total de Gastos Hoje</Text>
+          <Text style={s.summaryAmount}>R$ {todayExpenses}</Text>
           {fuelTotal > 0 && (
-            <View style={styles.chip}>
-              <Ionicons name="water-outline" size={14} color={YELLOW} />
-              <Text style={styles.chipText}>Combustível R$ {fuelTotal}</Text>
+            <View style={s.chip}>
+              <Ionicons name="water-outline" size={13} color={YELLOW} />
+              <Text style={s.chipText}>Combustível R$ {fuelTotal}</Text>
             </View>
           )}
         </View>
 
         {/* Form */}
-        {formMode ? (
-          <View style={styles.card}>
-            <View style={styles.formTitleRow}>
-              <Text style={styles.cardTitle}>
-                {formMode === "edit" ? "Editar Gasto" : "Novo Gasto"}
-              </Text>
-              <Pressable onPress={closeForm} style={styles.closeBtn}>
+        {formOpen ? (
+          <View style={s.card}>
+            <View style={s.formHead}>
+              <Text style={s.cardTitle}>{editingId ? "Editar Gasto" : "Novo Gasto"}</Text>
+              <Pressable onPress={closeForm} style={s.closeBtn}>
                 <Ionicons name="close" size={20} color={MUTED} />
               </Pressable>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Categoria</Text>
-              <View style={styles.categoryRow}>
+            <View style={s.inputGroup}>
+              <Text style={s.inputLabel}>Categoria</Text>
+              <View style={s.catRow}>
                 {CATEGORIES.map((c) => (
                   <Pressable
                     key={c.key}
-                    style={[
-                      styles.categoryBtn,
-                      category === c.key && styles.categoryBtnActive,
-                    ]}
+                    style={[s.catBtn, category === c.key && s.catBtnActive]}
                     onPress={() => setCategory(c.key)}
                   >
-                    <Ionicons
-                      name={c.icon as any}
-                      size={16}
-                      color={category === c.key ? "#000" : MUTED}
-                    />
-                    <Text
-                      style={[
-                        styles.categoryBtnText,
-                        category === c.key && styles.categoryBtnTextActive,
-                      ]}
-                    >
-                      {c.label}
-                    </Text>
+                    <Ionicons name={c.icon as any} size={16} color={category === c.key ? "#000" : MUTED} />
+                    <Text style={[s.catBtnText, category === c.key && s.catBtnTextActive]}>{c.label}</Text>
                   </Pressable>
                 ))}
               </View>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Descrição (opcional)</Text>
+            <View style={s.inputGroup}>
+              <Text style={s.inputLabel}>Descrição (opcional)</Text>
               <TextInput
-                style={styles.input}
+                style={s.input}
                 value={label}
                 onChangeText={setLabel}
-                placeholder="Ex: Posto Shell Av. Paulista"
+                placeholder="Ex: Posto Shell"
                 placeholderTextColor={MUTED}
               />
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Valor (R$) *</Text>
+            <View style={s.inputGroup}>
+              <Text style={s.inputLabel}>Valor (R$) *</Text>
               <TextInput
-                style={styles.input}
+                style={s.input}
                 value={amount}
                 onChangeText={setAmount}
                 keyboardType="decimal-pad"
                 placeholder="Ex: 80.00"
                 placeholderTextColor={MUTED}
-                autoFocus={formMode === "add"}
+                autoFocus={!editingId}
               />
             </View>
 
-            <View style={styles.formActions}>
-              <Pressable
-                style={({ pressed }) => [styles.cancelBtn, pressed && styles.pressed]}
-                onPress={closeForm}
-              >
-                <Text style={styles.cancelBtnText}>Cancelar</Text>
+            <View style={s.formActions}>
+              <Pressable style={({ pressed }) => [s.cancelBtn, pressed && s.pressed]} onPress={closeForm}>
+                <Text style={s.cancelBtnText}>Cancelar</Text>
               </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.saveBtn, pressed && styles.pressed]}
-                onPress={handleSave}
-              >
+              <Pressable style={({ pressed }) => [s.saveBtn, pressed && s.pressed]} onPress={handleSave}>
                 <Ionicons name="checkmark" size={18} color="#000" />
-                <Text style={styles.saveBtnText}>
-                  {formMode === "edit" ? "Salvar alteração" : "Salvar"}
-                </Text>
+                <Text style={s.saveBtnText}>{editingId ? "Salvar alteração" : "Salvar"}</Text>
               </Pressable>
             </View>
           </View>
         ) : (
-          <Pressable
-            style={({ pressed }) => [styles.addBtn, pressed && styles.pressed]}
-            onPress={openAdd}
-          >
+          <Pressable style={({ pressed }) => [s.addBtn, pressed && s.pressed]} onPress={openAdd}>
             <Ionicons name="add-circle-outline" size={22} color="#000" />
-            <Text style={styles.addBtnText}>Registrar novo gasto</Text>
+            <Text style={s.addBtnText}>Registrar novo gasto</Text>
           </Pressable>
         )}
 
         {/* List */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>
-              {expenses.length > 0 ? "Gastos Registrados" : "Nenhum gasto ainda"}
+        <View style={s.card}>
+          <View style={s.listHead}>
+            <Text style={s.cardTitle}>
+              {expenses.length === 0 ? "Nenhum gasto registrado" : "Gastos Registrados"}
             </Text>
             {expenses.length > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{expenses.length}</Text>
-              </View>
+              <View style={s.badge}><Text style={s.badgeText}>{expenses.length}</Text></View>
             )}
           </View>
 
           {expenses.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="receipt-outline" size={40} color={BORDER} />
-              <Text style={styles.emptyText}>Nenhum gasto registrado</Text>
-              <Text style={styles.emptySubText}>
-                Toque em "Registrar novo gasto" para começar
-              </Text>
+            <View style={s.empty}>
+              <Ionicons name="receipt-outline" size={44} color={BORDER} />
+              <Text style={s.emptyTitle}>Nenhum gasto ainda</Text>
+              <Text style={s.emptySub}>Toque em "Registrar novo gasto" para começar</Text>
             </View>
           ) : (
             expenses.map((exp, idx) => {
@@ -257,36 +208,26 @@ export default function GastosScreen() {
               return (
                 <View
                   key={exp.id}
-                  style={[
-                    styles.expRow,
-                    idx < expenses.length - 1 && styles.expBorder,
-                    isEditing && styles.expRowHighlight,
-                  ]}
+                  style={[s.row, idx < expenses.length - 1 && s.rowBorder, isEditing && s.rowHighlight]}
                 >
-                  <View style={styles.expIcon}>
-                    <Ionicons
-                      name={(cat?.icon ?? "receipt-outline") as any}
-                      size={18}
-                      color={RED}
-                    />
+                  <View style={s.rowIcon}>
+                    <Ionicons name={(cat?.icon ?? "receipt-outline") as any} size={18} color={RED} />
                   </View>
-                  <View style={styles.expInfo}>
-                    <Text style={styles.expLabel}>{exp.label}</Text>
-                    <Text style={styles.expTime}>
-                      {exp.time} · {exp.date}
-                    </Text>
+                  <View style={s.rowInfo}>
+                    <Text style={s.rowLabel}>{exp.label}</Text>
+                    <Text style={s.rowSub}>{exp.time} · {exp.date}</Text>
                   </View>
-                  <Text style={styles.expAmount}>- R$ {exp.amount}</Text>
-                  <View style={styles.expActions}>
+                  <Text style={s.rowAmount}>- R$ {exp.amount}</Text>
+                  <View style={s.rowActions}>
                     <Pressable
-                      style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+                      style={({ pressed }) => [s.iconBtn, pressed && s.pressed]}
                       onPress={() => openEdit(exp)}
                       hitSlop={8}
                     >
                       <Ionicons name="create-outline" size={18} color={YELLOW} />
                     </Pressable>
                     <Pressable
-                      style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+                      style={({ pressed }) => [s.iconBtn, pressed && s.pressed]}
                       onPress={() => handleRemove(exp.id)}
                       hitSlop={8}
                     >
@@ -303,25 +244,25 @@ export default function GastosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   content: { paddingHorizontal: 16, gap: 14 },
   pageTitle: { color: "#FFF", fontSize: 28, fontFamily: "Inter_700Bold", marginBottom: 4 },
 
-  totalCard: {
+  summaryCard: {
     backgroundColor: "#1A0A0A", borderRadius: 32,
     borderWidth: 1, borderColor: RED_DIM,
-    padding: 24, overflow: "hidden", gap: 10,
+    padding: 22, overflow: "hidden", gap: 10,
   },
-  glowBg: {
+  cardGlow: {
     position: "absolute", top: -30, right: -30,
     width: 140, height: 140, borderRadius: 70, backgroundColor: RED_DIM,
   },
-  totalLabel: { color: MUTED, fontSize: 13, fontFamily: "Inter_500Medium" },
-  totalAmount: { color: RED, fontSize: 48, fontFamily: "Inter_700Bold", letterSpacing: -1 },
+  summaryLabel: { color: MUTED, fontSize: 13, fontFamily: "Inter_500Medium" },
+  summaryAmount: { color: RED, fontSize: 46, fontFamily: "Inter_700Bold", letterSpacing: -1 },
   chip: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: YELLOW_DIM, borderRadius: 10,
-    paddingHorizontal: 10, paddingVertical: 5, gap: 6, alignSelf: "flex-start",
+    paddingHorizontal: 10, paddingVertical: 6, gap: 6, alignSelf: "flex-start",
   },
   chipText: { color: YELLOW, fontSize: 12, fontFamily: "Inter_600SemiBold" },
 
@@ -335,10 +276,10 @@ const styles = StyleSheet.create({
     backgroundColor: CARD, borderRadius: 28,
     borderWidth: 1, borderColor: BORDER, padding: 20, gap: 14,
   },
-  formTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  formHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   closeBtn: { padding: 4 },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   cardTitle: { color: "#FFF", fontSize: 17, fontFamily: "Inter_700Bold" },
+  listHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   badge: { backgroundColor: YELLOW_DIM, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10 },
   badgeText: { color: YELLOW, fontSize: 13, fontFamily: "Inter_700Bold" },
 
@@ -347,18 +288,17 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: "rgba(0,0,0,0.3)", borderRadius: 14,
     borderWidth: 1, borderColor: BORDER,
-    paddingHorizontal: 14, paddingVertical: 12,
-    color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium",
+    paddingHorizontal: 14, paddingVertical: 13,
+    color: "#FFF", fontSize: 17, fontFamily: "Inter_500Medium",
   },
-
-  categoryRow: { flexDirection: "row", gap: 8 },
-  categoryBtn: {
+  catRow: { flexDirection: "row", gap: 8 },
+  catBtn: {
     flex: 1, backgroundColor: BORDER, borderRadius: 12,
     paddingVertical: 10, alignItems: "center", gap: 4,
   },
-  categoryBtnActive: { backgroundColor: YELLOW },
-  categoryBtnText: { color: MUTED, fontSize: 10, fontFamily: "Inter_600SemiBold" },
-  categoryBtnTextActive: { color: "#000" },
+  catBtnActive: { backgroundColor: YELLOW },
+  catBtnText: { color: MUTED, fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  catBtnTextActive: { color: "#000" },
 
   formActions: { flexDirection: "row", gap: 10 },
   cancelBtn: {
@@ -373,21 +313,18 @@ const styles = StyleSheet.create({
   saveBtnText: { color: "#000", fontSize: 14, fontFamily: "Inter_700Bold" },
   pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
 
-  expRow: { flexDirection: "row", alignItems: "center", paddingVertical: 12, gap: 10 },
-  expBorder: { borderBottomWidth: 1, borderBottomColor: BORDER },
-  expRowHighlight: { backgroundColor: "rgba(250,204,21,0.05)", borderRadius: 12 },
-  expIcon: {
-    width: 40, height: 40, borderRadius: 13,
-    backgroundColor: RED_DIM, alignItems: "center", justifyContent: "center",
-  },
-  expInfo: { flex: 1, gap: 3 },
-  expLabel: { color: "#FFF", fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  expTime: { color: MUTED, fontSize: 11, fontFamily: "Inter_400Regular" },
-  expAmount: { color: RED, fontSize: 15, fontFamily: "Inter_700Bold" },
-  expActions: { flexDirection: "row", gap: 4 },
+  row: { flexDirection: "row", alignItems: "center", paddingVertical: 12, gap: 10 },
+  rowBorder: { borderBottomWidth: 1, borderBottomColor: BORDER },
+  rowHighlight: { backgroundColor: "rgba(250,204,21,0.05)", borderRadius: 12 },
+  rowIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: RED_DIM, alignItems: "center", justifyContent: "center" },
+  rowInfo: { flex: 1, gap: 3 },
+  rowLabel: { color: "#FFF", fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  rowSub: { color: MUTED, fontSize: 11, fontFamily: "Inter_400Regular" },
+  rowAmount: { color: RED, fontSize: 15, fontFamily: "Inter_700Bold" },
+  rowActions: { flexDirection: "row", gap: 4 },
   iconBtn: { padding: 6 },
 
-  emptyState: { alignItems: "center", paddingVertical: 32, gap: 8 },
-  emptyText: { color: MUTED, fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  emptySubText: { color: BORDER, fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
+  empty: { alignItems: "center", paddingVertical: 36, gap: 10 },
+  emptyTitle: { color: MUTED, fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  emptySub: { color: BORDER, fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
 });

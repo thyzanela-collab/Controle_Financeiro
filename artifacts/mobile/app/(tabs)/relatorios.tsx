@@ -1,24 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import {
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useApp } from "@/context/AppContext";
 
 const YELLOW = "#FACC15";
-const YELLOW_DIM = "rgba(250, 204, 21, 0.15)";
 const CARD = "#18181B";
 const BORDER = "#27272A";
 const MUTED = "#71717A";
 const BG = "#000000";
 const RED = "#EF4444";
 const GREEN = "#22C55E";
+const BLUE = "#60A5FA";
 
 function getLast7DayLabels(): string[] {
   const labels = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
@@ -36,180 +30,192 @@ export default function RelatoriosScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const {
-    rides,
-    expenses,
+    earnings, expenses,
     dailyGoal,
-    todayEarnings,
-    todayExpenses,
-    todayNetProfit,
-    todayRides,
+    todayEarnings, todayExpenses, todayNetProfit,
     weeklyData,
+    totalKmToday, hoursOnlineToday,
   } = useApp();
 
-  const totalEarnings = rides.reduce((s, r) => s + r.value, 0);
+  const totalEarnings = earnings.reduce((s, e) => s + e.amount, 0);
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
   const totalProfit = totalEarnings - totalExpenses;
-  const totalKm = rides.reduce((s, r) => s + r.km, 0);
-  const avgPerRide =
-    rides.length > 0 ? Math.round(totalEarnings / rides.length) : 0;
+
+  const uber99Total = earnings.filter((e) => e.type === "uber99").reduce((s, e) => s + e.amount, 0);
+  const particularTotal = earnings.filter((e) => e.type === "particular").reduce((s, e) => s + e.amount, 0);
+  const gorjetaTotal = earnings.filter((e) => e.type === "gorjeta").reduce((s, e) => s + e.amount, 0);
+
+  const todayUber = earnings.filter((e) => e.type === "uber99" && e.date === new Date().toISOString().slice(0, 10)).reduce((s, e) => s + e.amount, 0);
+  const todayParticular = earnings.filter((e) => e.type === "particular" && e.date === new Date().toISOString().slice(0, 10)).reduce((s, e) => s + e.amount, 0);
+  const todayGorjeta = earnings.filter((e) => e.type === "gorjeta" && e.date === new Date().toISOString().slice(0, 10)).reduce((s, e) => s + e.amount, 0);
 
   const weeklyTotal = weeklyData.reduce((s, v) => s + v, 0);
   const weeklyMax = Math.max(...weeklyData, 1);
   const dayLabels = getLast7DayLabels();
 
-  const fuelExpenses = expenses
-    .filter((e) => e.category === "fuel")
-    .reduce((s, e) => s + e.amount, 0);
-  const maintenanceExpenses = expenses
-    .filter((e) => e.category === "maintenance")
-    .reduce((s, e) => s + e.amount, 0);
+  const fuelExpenses = expenses.filter((e) => e.category === "fuel").reduce((s, e) => s + e.amount, 0);
+  const maintenanceExpenses = expenses.filter((e) => e.category === "maintenance").reduce((s, e) => s + e.amount, 0);
 
-  const goalProgress = dailyGoal > 0
-    ? Math.min((todayNetProfit / dailyGoal) * 100, 100)
-    : 0;
+  const goalProgress = dailyGoal > 0 ? Math.min((todayNetProfit / dailyGoal) * 100, 100) : 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: topPad + 16, paddingBottom: 120 },
-        ]}
+        contentContainerStyle={[s.content, { paddingTop: topPad + 16, paddingBottom: 130 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.pageTitle}>Relatórios</Text>
+        <Text style={s.pageTitle}>Relatórios</Text>
 
-        <View style={styles.heroCard}>
-          <View style={styles.heroGlow} />
-          <Text style={styles.heroLabel}>Lucro Total Acumulado</Text>
-          <Text style={styles.heroAmount}>
-            R$ {totalProfit.toFixed(2).replace(".", ",")}
-          </Text>
-          <View style={styles.heroRow}>
-            <View style={styles.heroStat}>
-              <Ionicons name="car-outline" size={14} color="rgba(0,0,0,0.5)" />
-              <Text style={styles.heroStatText}>{rides.length} corridas</Text>
+        {/* Total acumulado */}
+        <View style={s.heroCard}>
+          <View style={s.heroGlow} />
+          <Text style={s.heroLabel}>Lucro Total Acumulado</Text>
+          <Text style={s.heroAmount}>R$ {totalProfit.toFixed(2).replace(".", ",")}</Text>
+          <View style={s.heroRow}>
+            <View style={s.heroStat}>
+              <Ionicons name="trending-up-outline" size={14} color="rgba(0,0,0,0.5)" />
+              <Text style={s.heroStatText}>Ganhos: R$ {totalEarnings.toFixed(0)}</Text>
             </View>
-            <View style={styles.heroStat}>
-              <Ionicons name="navigate-outline" size={14} color="rgba(0,0,0,0.5)" />
-              <Text style={styles.heroStatText}>{totalKm.toFixed(1)} km</Text>
+            <View style={s.heroStat}>
+              <Ionicons name="trending-down-outline" size={14} color="rgba(0,0,0,0.5)" />
+              <Text style={s.heroStatText}>Gastos: R$ {totalExpenses.toFixed(0)}</Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Hoje</Text>
-          <View style={styles.todayGoalRow}>
-            <Text style={styles.todayGoalLabel}>Meta diária</Text>
-            <Text style={styles.todayGoalPct}>{Math.round(goalProgress)}%</Text>
+        {/* Hoje */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>Hoje</Text>
+          <View style={s.todayGoalRow}>
+            <Text style={s.todayGoalLabel}>Meta diária · R$ {dailyGoal}</Text>
+            <Text style={s.todayGoalPct}>{Math.round(goalProgress)}%</Text>
           </View>
-          <View style={styles.progressTrack}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${goalProgress}%` as any },
-              ]}
-            />
+          <View style={s.progressTrack}>
+            <View style={[s.progressFill, { width: `${goalProgress}%` as any }]} />
           </View>
-          <View style={styles.summaryGrid}>
+          <View style={s.summaryGrid}>
             {[
-              { label: "Ganhos", value: `R$ ${todayEarnings}`, color: YELLOW },
-              { label: "Gastos", value: `R$ ${todayExpenses}`, color: RED },
-              { label: "Lucro", value: `R$ ${todayNetProfit}`, color: GREEN },
-              { label: "Corridas", value: `${todayRides.length}`, color: "#FFF" },
+              { label: "Ganhos",      value: `R$ ${todayEarnings}`,    color: YELLOW },
+              { label: "Gastos",      value: `R$ ${todayExpenses}`,    color: RED },
+              { label: "Lucro",       value: `R$ ${todayNetProfit}`,   color: GREEN },
+              { label: "Horas",       value: `${hoursOnlineToday}h`,   color: "#818CF8" },
+              { label: "KM",          value: `${totalKmToday.toFixed(0)} km`, color: GREEN },
+              { label: "Uber/99",     value: `R$ ${todayUber}`,        color: BLUE },
+              { label: "Particular",  value: `R$ ${todayParticular}`,  color: GREEN },
+              { label: "Gorjeta",     value: `R$ ${todayGorjeta}`,     color: YELLOW },
             ].map(({ label, value, color }) => (
-              <View key={label} style={styles.summaryCard}>
-                <Text style={styles.summaryCardLabel}>{label}</Text>
-                <Text style={[styles.summaryCardValue, { color }]}>
-                  {value}
-                </Text>
+              <View key={label} style={s.summaryCard}>
+                <Text style={s.summaryCardLabel}>{label}</Text>
+                <Text style={[s.summaryCardValue, { color }]}>{value}</Text>
               </View>
             ))}
           </View>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Últimos 7 Dias</Text>
-          <Text style={[styles.heroAmount2]}>
-            R$ {weeklyTotal.toFixed(2).replace(".", ",")}
-          </Text>
-          <View style={styles.weekChart}>
+        {/* Semanal */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>Últimos 7 Dias</Text>
+          <Text style={s.heroAmount2}>R$ {weeklyTotal.toFixed(2).replace(".", ",")}</Text>
+          <View style={s.weekChart}>
             {weeklyData.map((val, i) => {
               const h = (val / weeklyMax) * 100;
               const isToday = i === 6;
               return (
-                <View key={i} style={styles.weekBarWrap}>
-                  <Text style={styles.weekVal}>
-                    {val > 0 ? `${val}` : ""}
-                  </Text>
-                  <View style={styles.weekBarBg}>
+                <View key={i} style={s.weekBarWrap}>
+                  <Text style={s.weekVal}>{val > 0 ? `${val}` : ""}</Text>
+                  <View style={s.weekBarBg}>
                     <View
                       style={[
-                        styles.weekBar,
-                        {
-                          height: `${Math.max(h, 4)}%` as any,
-                          backgroundColor: isToday ? YELLOW : val > 0 ? "rgba(250,204,21,0.4)" : BORDER,
-                        },
+                        s.weekBar,
+                        { height: `${Math.max(h, 4)}%` as any, backgroundColor: isToday ? YELLOW : val > 0 ? "rgba(250,204,21,0.4)" : BORDER },
                       ]}
                     />
                   </View>
-                  <Text style={[styles.weekDay, isToday && { color: YELLOW }]}>
-                    {dayLabels[i]}
-                  </Text>
+                  <Text style={[s.weekDay, isToday && { color: YELLOW }]}>{dayLabels[i]}</Text>
                 </View>
               );
             })}
           </View>
         </View>
 
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Breakdown de Gastos</Text>
-            <Ionicons name="pie-chart-outline" size={20} color={MUTED} />
+        {/* Ganhos por modalidade */}
+        <View style={s.card}>
+          <View style={s.cardHeader}>
+            <Text style={s.cardTitle}>Ganhos por Modalidade</Text>
+            <Ionicons name="car-outline" size={20} color={MUTED} />
           </View>
           {[
-            { label: "Combustível", value: fuelExpenses, icon: "water-outline", color: YELLOW },
-            { label: "Manutenção", value: maintenanceExpenses, icon: "construct-outline", color: "#F97316" },
-            { label: "Outros", value: totalExpenses - fuelExpenses - maintenanceExpenses, icon: "receipt-outline", color: MUTED },
-          ].map(({ label, value, icon, color }) => (
-            <View key={label} style={styles.breakdownRow}>
-              <View style={[styles.breakdownIcon, { backgroundColor: `${color}18` }]}>
+            { label: "Uber / 99",   value: uber99Total,     color: BLUE,    icon: "car-sport-outline" },
+            { label: "Particular",  value: particularTotal, color: GREEN,   icon: "person-outline" },
+            { label: "Gorjeta",     value: gorjetaTotal,    color: YELLOW,  icon: "gift-outline" },
+          ].map(({ label, value, color, icon }) => (
+            <View key={label} style={s.breakdownRow}>
+              <View style={[s.breakdownIcon, { backgroundColor: `${color}18` }]}>
                 <Ionicons name={icon as any} size={16} color={color} />
               </View>
-              <Text style={styles.breakdownLabel}>{label}</Text>
-              <View style={styles.breakdownBarWrap}>
+              <Text style={s.breakdownLabel}>{label}</Text>
+              <View style={s.breakdownBarWrap}>
                 <View
                   style={[
-                    styles.breakdownBar,
+                    s.breakdownBar,
                     {
-                      width: totalExpenses > 0
-                        ? `${(value / totalExpenses) * 100}%` as any
-                        : "0%",
+                      width: totalEarnings > 0 ? `${(value / totalEarnings) * 100}%` as any : "0%",
                       backgroundColor: color,
                     },
                   ]}
                 />
               </View>
-              <Text style={[styles.breakdownValue, { color }]}>
-                R$ {value.toFixed(0)}
-              </Text>
+              <Text style={[s.breakdownValue, { color }]}>R$ {value.toFixed(0)}</Text>
             </View>
           ))}
         </View>
 
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Médias</Text>
+        {/* Gastos */}
+        <View style={s.card}>
+          <View style={s.cardHeader}>
+            <Text style={s.cardTitle}>Gastos por Categoria</Text>
+            <Ionicons name="pie-chart-outline" size={20} color={MUTED} />
+          </View>
+          {[
+            { label: "Combustível", value: fuelExpenses,                                  icon: "water-outline",    color: YELLOW },
+            { label: "Manutenção",  value: maintenanceExpenses,                           icon: "construct-outline", color: "#F97316" },
+            { label: "Outros",      value: totalExpenses - fuelExpenses - maintenanceExpenses, icon: "receipt-outline", color: MUTED },
+          ].map(({ label, value, icon, color }) => (
+            <View key={label} style={s.breakdownRow}>
+              <View style={[s.breakdownIcon, { backgroundColor: `${color}18` }]}>
+                <Ionicons name={icon as any} size={16} color={color} />
+              </View>
+              <Text style={s.breakdownLabel}>{label}</Text>
+              <View style={s.breakdownBarWrap}>
+                <View
+                  style={[
+                    s.breakdownBar,
+                    {
+                      width: totalExpenses > 0 ? `${(value / totalExpenses) * 100}%` as any : "0%",
+                      backgroundColor: color,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={[s.breakdownValue, { color }]}>R$ {value.toFixed(0)}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Médias */}
+        <View style={s.card}>
+          <View style={s.cardHeader}>
+            <Text style={s.cardTitle}>Médias Gerais</Text>
             <Ionicons name="analytics-outline" size={20} color={YELLOW} />
           </View>
           {[
-            { label: "Ganho por corrida", value: `R$ ${avgPerRide}` },
-            { label: "KM por corrida", value: rides.length > 0 ? `${(totalKm / rides.length).toFixed(1)} km` : "—" },
-            { label: "Gasto total", value: `R$ ${totalExpenses.toFixed(0)}` },
+            { label: "Total de ganhos",    value: `R$ ${totalEarnings.toFixed(0)}` },
+            { label: "Total de gastos",    value: `R$ ${totalExpenses.toFixed(0)}` },
+            { label: "Lucro acumulado",    value: `R$ ${totalProfit.toFixed(0)}` },
           ].map(({ label, value }) => (
-            <View key={label} style={styles.avgRow}>
-              <Text style={styles.avgLabel}>{label}</Text>
-              <Text style={styles.avgValue}>{value}</Text>
+            <View key={label} style={s.avgRow}>
+              <Text style={s.avgLabel}>{label}</Text>
+              <Text style={s.avgValue}>{value}</Text>
             </View>
           ))}
         </View>
@@ -218,31 +224,12 @@ export default function RelatoriosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   content: { paddingHorizontal: 16, gap: 14 },
-  pageTitle: {
-    color: "#FFF",
-    fontSize: 28,
-    fontFamily: "Inter_700Bold",
-    marginBottom: 4,
-  },
+  pageTitle: { color: "#FFF", fontSize: 28, fontFamily: "Inter_700Bold", marginBottom: 4 },
 
-  heroCard: {
-    backgroundColor: YELLOW,
-    borderRadius: 32,
-    padding: 24,
-    overflow: "hidden",
-    gap: 8,
-  },
-  heroGlow: {
-    position: "absolute",
-    top: -30,
-    right: -30,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: "rgba(255,255,255,0.25)",
-  },
+  heroCard: { backgroundColor: YELLOW, borderRadius: 32, padding: 24, overflow: "hidden", gap: 8 },
+  heroGlow: { position: "absolute", top: -30, right: -30, width: 140, height: 140, borderRadius: 70, backgroundColor: "rgba(255,255,255,0.25)" },
   heroLabel: { color: "rgba(0,0,0,0.55)", fontSize: 13, fontFamily: "Inter_500Medium" },
   heroAmount: { color: "#000", fontSize: 40, fontFamily: "Inter_700Bold", letterSpacing: -1 },
   heroAmount2: { color: YELLOW, fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
@@ -250,109 +237,38 @@ const styles = StyleSheet.create({
   heroStat: { flexDirection: "row", alignItems: "center", gap: 5 },
   heroStatText: { color: "rgba(0,0,0,0.6)", fontSize: 13, fontFamily: "Inter_500Medium" },
 
-  card: {
-    backgroundColor: CARD,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: BORDER,
-    padding: 20,
-    gap: 14,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
+  card: { backgroundColor: CARD, borderRadius: 28, borderWidth: 1, borderColor: BORDER, padding: 20, gap: 14 },
+  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   cardTitle: { color: "#FFF", fontSize: 17, fontFamily: "Inter_700Bold" },
 
-  todayGoalRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
+  todayGoalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   todayGoalLabel: { color: MUTED, fontSize: 13, fontFamily: "Inter_400Regular" },
   todayGoalPct: { color: YELLOW, fontSize: 13, fontFamily: "Inter_700Bold" },
-  progressTrack: {
-    height: 8,
-    backgroundColor: BORDER,
-    borderRadius: 4,
-    overflow: "hidden",
-  },
+  progressTrack: { height: 8, backgroundColor: BORDER, borderRadius: 4, overflow: "hidden" },
   progressFill: { height: 8, backgroundColor: YELLOW, borderRadius: 4 },
 
   summaryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  summaryCard: {
-    width: "48%",
-    backgroundColor: "rgba(0,0,0,0.3)",
-    borderRadius: 16,
-    padding: 14,
-    gap: 6,
-  },
+  summaryCard: { width: "48%", backgroundColor: "rgba(0,0,0,0.3)", borderRadius: 16, padding: 14, gap: 6 },
   summaryCardLabel: { color: MUTED, fontSize: 12, fontFamily: "Inter_400Regular" },
-  summaryCardValue: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  summaryCardValue: { fontSize: 18, fontFamily: "Inter_700Bold" },
 
-  weekChart: {
-    height: 120,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 6,
-  },
-  weekBarWrap: {
-    flex: 1,
-    height: 120,
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 4,
-  },
+  weekChart: { height: 120, flexDirection: "row", alignItems: "flex-end", gap: 6 },
+  weekBarWrap: { flex: 1, height: 120, alignItems: "center", justifyContent: "flex-end", gap: 4 },
   weekVal: { color: MUTED, fontSize: 8, fontFamily: "Inter_500Medium" },
-  weekBarBg: {
-    flex: 1,
-    width: "100%",
-    justifyContent: "flex-end",
-  },
-  weekBar: {
-    width: "100%",
-    borderTopLeftRadius: 6,
-    borderTopRightRadius: 6,
-  },
+  weekBarBg: { flex: 1, width: "100%", justifyContent: "flex-end" },
+  weekBar: { width: "100%", borderTopLeftRadius: 6, borderTopRightRadius: 6 },
   weekDay: { color: MUTED, fontSize: 9, fontFamily: "Inter_600SemiBold" },
 
-  breakdownRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  breakdownIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  breakdownLabel: {
-    color: MUTED,
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    width: 90,
-  },
-  breakdownBarWrap: {
-    flex: 1,
-    height: 6,
-    backgroundColor: BORDER,
-    borderRadius: 3,
-    overflow: "hidden",
-  },
+  breakdownRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  breakdownIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  breakdownLabel: { color: MUTED, fontSize: 13, fontFamily: "Inter_400Regular", width: 90 },
+  breakdownBarWrap: { flex: 1, height: 6, backgroundColor: BORDER, borderRadius: 3, overflow: "hidden" },
   breakdownBar: { height: 6, borderRadius: 3 },
-  breakdownValue: { fontSize: 13, fontFamily: "Inter_700Bold", width: 55, textAlign: "right" },
+  breakdownValue: { fontSize: 13, fontFamily: "Inter_700Bold", width: 60, textAlign: "right" },
 
   avgRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.3)",
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.3)", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
   },
   avgLabel: { color: MUTED, fontSize: 13, fontFamily: "Inter_400Regular" },
   avgValue: { color: YELLOW, fontSize: 14, fontFamily: "Inter_700Bold" },

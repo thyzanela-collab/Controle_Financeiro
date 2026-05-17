@@ -14,88 +14,99 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useApp, type Ride } from "@/context/AppContext";
+import { useApp, type EarningEntry } from "@/context/AppContext";
 
 const YELLOW = "#FACC15";
-const YELLOW_DIM = "rgba(250, 204, 21, 0.15)";
+const YELLOW_DIM = "rgba(250,204,21,0.15)";
 const CARD = "#18181B";
 const BORDER = "#27272A";
 const MUTED = "#71717A";
 const BG = "#000000";
 
-type FormMode = "add" | "edit";
+type EarningType = EarningEntry["type"];
+
+const TYPES: { key: EarningType; label: string; icon: string; color: string; bg: string }[] = [
+  { key: "uber99",     label: "Uber / 99",  icon: "car-sport-outline",  color: "#60A5FA", bg: "rgba(96,165,250,0.15)" },
+  { key: "particular", label: "Particular", icon: "person-outline",     color: "#34D399", bg: "rgba(52,211,153,0.15)" },
+  { key: "gorjeta",    label: "Gorjeta",    icon: "gift-outline",        color: YELLOW,    bg: YELLOW_DIM },
+];
+
+function typeInfo(key: EarningType) {
+  return TYPES.find((t) => t.key === key) ?? TYPES[0];
+}
+
+function platformConfirm(msg: string, onConfirm: () => void) {
+  if (Platform.OS === "web") {
+    if (window.confirm(msg)) onConfirm();
+  } else {
+    Alert.alert("Confirmar", msg, [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Remover", style: "destructive", onPress: onConfirm },
+    ]);
+  }
+}
 
 export default function GanhosScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const { rides, addRide, updateRide, removeRide, todayEarnings, todayRides } = useApp();
+  const { earnings, todayEarnings, todayEarningList, addEarning, updateEarning, removeEarning } = useApp();
 
-  const [formMode, setFormMode] = useState<FormMode | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [value, setValue] = useState("");
-  const [km, setKm] = useState("");
-  const [duration, setDuration] = useState("");
+  const [selType, setSelType] = useState<EarningType>("uber99");
+  const [amount, setAmount] = useState("");
 
-  const totalKm = todayRides.reduce((s, r) => s + r.km, 0);
-  const avgPerRide =
-    todayRides.length > 0 ? Math.round(todayEarnings / todayRides.length) : 0;
+  const todayUber  = todayEarningList.filter((e) => e.type === "uber99").reduce((s, e) => s + e.amount, 0);
+  const todayPart  = todayEarningList.filter((e) => e.type === "particular").reduce((s, e) => s + e.amount, 0);
+  const todayGorj  = todayEarningList.filter((e) => e.type === "gorjeta").reduce((s, e) => s + e.amount, 0);
 
   function openAdd() {
-    setValue("");
-    setKm("");
-    setDuration("");
     setEditingId(null);
-    setFormMode("add");
+    setSelType("uber99");
+    setAmount("");
+    setFormOpen(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
-  function openEdit(ride: Ride) {
-    setValue(String(ride.value));
-    setKm(ride.km > 0 ? String(ride.km) : "");
-    setDuration(ride.durationMin > 0 ? String(ride.durationMin) : "");
-    setEditingId(ride.id);
-    setFormMode("edit");
+  function openEdit(entry: EarningEntry) {
+    setEditingId(entry.id);
+    setSelType(entry.type);
+    setAmount(String(entry.amount));
+    setFormOpen(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
   function closeForm() {
-    setFormMode(null);
+    setFormOpen(false);
     setEditingId(null);
   }
 
   function handleSave() {
-    const v = parseFloat(value);
+    const v = parseFloat(amount);
     if (!v || v <= 0) {
-      Alert.alert("Valor inválido", "Informe o valor da corrida.");
+      if (Platform.OS === "web") {
+        window.alert("Informe um valor válido.");
+      } else {
+        Alert.alert("Valor inválido", "Informe o valor do ganho.");
+      }
       return;
     }
-    const k = parseFloat(km) || 0;
-    const d = parseInt(duration) || 0;
-
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-    if (formMode === "edit" && editingId) {
-      updateRide(editingId, { value: v, km: k, durationMin: d });
+    if (editingId) {
+      updateEarning(editingId, { type: selType, amount: v });
     } else {
-      addRide({ value: v, km: k, durationMin: d });
+      addEarning({ type: selType, amount: v });
     }
     closeForm();
   }
 
   function handleRemove(id: string) {
-    Alert.alert("Remover corrida", "Tem certeza?", [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Remover",
-        style: "destructive",
-        onPress: () => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-          removeRide(id);
-          if (editingId === id) closeForm();
-        },
-      },
-    ]);
+    platformConfirm("Remover este ganho?", () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      removeEarning(id);
+      if (editingId === id) closeForm();
+    });
   }
 
   return (
@@ -104,174 +115,143 @@ export default function GanhosScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: topPad + 16, paddingBottom: 120 },
-        ]}
+        contentContainerStyle={[s.content, { paddingTop: topPad + 16, paddingBottom: 130 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.pageTitle}>Ganhos</Text>
+        <Text style={s.pageTitle}>Ganhos</Text>
 
-        {/* Summary card */}
-        <View style={styles.totalCard}>
-          <View style={styles.profitGlow} />
-          <Text style={styles.totalLabel}>Total Hoje</Text>
-          <Text style={styles.totalAmount}>R$ {todayEarnings}</Text>
-          <View style={styles.totalRow}>
-            <View style={styles.totalStat}>
-              <Ionicons name="car-outline" size={14} color="rgba(0,0,0,0.5)" />
-              <Text style={styles.totalStatText}>{todayRides.length} corridas</Text>
-            </View>
-            <View style={styles.totalStat}>
-              <Ionicons name="navigate-outline" size={14} color="rgba(0,0,0,0.5)" />
-              <Text style={styles.totalStatText}>{totalKm.toFixed(1)} km</Text>
-            </View>
-            {avgPerRide > 0 && (
-              <View style={styles.totalStat}>
-                <Ionicons name="trending-up-outline" size={14} color="rgba(0,0,0,0.5)" />
-                <Text style={styles.totalStatText}>R$ {avgPerRide}/corrida</Text>
-              </View>
-            )}
+        {/* Summary */}
+        <View style={s.summaryCard}>
+          <View style={s.cardGlow} />
+          <Text style={s.summaryLabel}>Total de Ganhos Hoje</Text>
+          <Text style={s.summaryAmount}>R$ {todayEarnings}</Text>
+          <View style={s.typeBadges}>
+            {TYPES.map((t) => {
+              const val = t.key === "uber99" ? todayUber : t.key === "particular" ? todayPart : todayGorj;
+              return (
+                <View key={t.key} style={[s.typeBadge, { backgroundColor: t.bg, borderColor: `${t.color}30` }]}>
+                  <Ionicons name={t.icon as any} size={13} color={t.color} />
+                  <Text style={[s.typeBadgeLabel, { color: t.color }]}>{t.label}</Text>
+                  <Text style={[s.typeBadgeVal, { color: t.color }]}>R$ {val}</Text>
+                </View>
+              );
+            })}
           </View>
         </View>
 
         {/* Form */}
-        {formMode ? (
-          <View style={styles.card}>
-            <View style={styles.formTitleRow}>
-              <Text style={styles.cardTitle}>
-                {formMode === "edit" ? "Editar Corrida" : "Nova Corrida"}
-              </Text>
-              <Pressable onPress={closeForm} style={styles.closeBtn}>
+        {formOpen ? (
+          <View style={s.card}>
+            <View style={s.formHead}>
+              <Text style={s.cardTitle}>{editingId ? "Editar Ganho" : "Novo Ganho"}</Text>
+              <Pressable onPress={closeForm} style={s.closeBtn}>
                 <Ionicons name="close" size={20} color={MUTED} />
               </Pressable>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Valor recebido (R$) *</Text>
+            <View style={s.inputGroup}>
+              <Text style={s.inputLabel}>Modalidade</Text>
+              <View style={s.typeRow}>
+                {TYPES.map((t) => (
+                  <Pressable
+                    key={t.key}
+                    style={[s.typeBtn, selType === t.key && { backgroundColor: t.color, borderColor: t.color }]}
+                    onPress={() => setSelType(t.key)}
+                  >
+                    <Ionicons name={t.icon as any} size={16} color={selType === t.key ? "#000" : MUTED} />
+                    <Text style={[s.typeBtnLabel, selType === t.key && { color: "#000" }]}>
+                      {t.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <View style={s.inputGroup}>
+              <Text style={s.inputLabel}>Valor (R$) *</Text>
               <TextInput
-                style={styles.input}
-                value={value}
-                onChangeText={setValue}
+                style={s.input}
+                value={amount}
+                onChangeText={setAmount}
                 keyboardType="decimal-pad"
-                placeholder="Ex: 35.50"
+                placeholder="Ex: 150.00"
                 placeholderTextColor={MUTED}
                 autoFocus
               />
             </View>
 
-            <View style={styles.inputRow}>
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>Distância (km)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={km}
-                  onChangeText={setKm}
-                  keyboardType="decimal-pad"
-                  placeholder="Ex: 12.5"
-                  placeholderTextColor={MUTED}
-                />
-              </View>
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>Duração (min)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={duration}
-                  onChangeText={setDuration}
-                  keyboardType="number-pad"
-                  placeholder="Ex: 20"
-                  placeholderTextColor={MUTED}
-                />
-              </View>
-            </View>
-
-            <View style={styles.formActions}>
-              <Pressable
-                style={({ pressed }) => [styles.cancelBtn, pressed && styles.pressed]}
-                onPress={closeForm}
-              >
-                <Text style={styles.cancelBtnText}>Cancelar</Text>
+            <View style={s.formActions}>
+              <Pressable style={({ pressed }) => [s.cancelBtn, pressed && s.pressed]} onPress={closeForm}>
+                <Text style={s.cancelBtnText}>Cancelar</Text>
               </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.saveBtn, pressed && styles.pressed]}
-                onPress={handleSave}
-              >
+              <Pressable style={({ pressed }) => [s.saveBtn, pressed && s.pressed]} onPress={handleSave}>
                 <Ionicons name="checkmark" size={18} color="#000" />
-                <Text style={styles.saveBtnText}>
-                  {formMode === "edit" ? "Salvar alteração" : "Salvar"}
-                </Text>
+                <Text style={s.saveBtnText}>{editingId ? "Salvar alteração" : "Salvar"}</Text>
               </Pressable>
             </View>
           </View>
         ) : (
           <Pressable
-            style={({ pressed }) => [styles.addBtn, pressed && styles.pressed]}
+            style={({ pressed }) => [s.addBtn, pressed && s.pressed]}
             onPress={openAdd}
           >
             <Ionicons name="add-circle-outline" size={22} color="#000" />
-            <Text style={styles.addBtnText}>Registrar nova corrida</Text>
+            <Text style={s.addBtnText}>Registrar ganho</Text>
           </Pressable>
         )}
 
         {/* List */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>
-              {rides.length > 0 ? "Corridas Registradas" : "Nenhuma corrida ainda"}
+        <View style={s.card}>
+          <View style={s.listHead}>
+            <Text style={s.cardTitle}>
+              {earnings.length === 0 ? "Nenhum ganho registrado" : "Ganhos Registrados"}
             </Text>
-            {rides.length > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{rides.length}</Text>
+            {earnings.length > 0 && (
+              <View style={s.badge}>
+                <Text style={s.badgeText}>{earnings.length}</Text>
               </View>
             )}
           </View>
 
-          {rides.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="car-outline" size={40} color={BORDER} />
-              <Text style={styles.emptyText}>Nenhuma corrida registrada</Text>
-              <Text style={styles.emptySubText}>
-                Toque em "Registrar nova corrida" para começar
-              </Text>
+          {earnings.length === 0 ? (
+            <View style={s.empty}>
+              <Ionicons name="cash-outline" size={44} color={BORDER} />
+              <Text style={s.emptyTitle}>Nenhum ganho ainda</Text>
+              <Text style={s.emptySub}>Toque em "Registrar ganho" para começar</Text>
             </View>
           ) : (
-            rides.map((ride, idx) => {
-              const isEditing = editingId === ride.id;
+            earnings.map((entry, idx) => {
+              const t = typeInfo(entry.type);
+              const isEditing = editingId === entry.id;
               return (
                 <View
-                  key={ride.id}
+                  key={entry.id}
                   style={[
-                    styles.rideRow,
-                    idx < rides.length - 1 && styles.rideBorder,
-                    isEditing && styles.rideRowHighlight,
+                    s.row,
+                    idx < earnings.length - 1 && s.rowBorder,
+                    isEditing && s.rowHighlight,
                   ]}
                 >
-                  <View style={styles.rideIcon}>
-                    <Ionicons name="car-sport-outline" size={18} color={YELLOW} />
+                  <View style={[s.rowIcon, { backgroundColor: t.bg }]}>
+                    <Ionicons name={t.icon as any} size={18} color={t.color} />
                   </View>
-                  <View style={styles.rideInfo}>
-                    <Text style={styles.rideTime}>
-                      {ride.time} · {ride.date}
-                    </Text>
-                    <Text style={styles.rideMeta}>
-                      {ride.km > 0 ? `${ride.km} km` : ""}
-                      {ride.km > 0 && ride.durationMin > 0 ? " · " : ""}
-                      {ride.durationMin > 0 ? `${ride.durationMin} min` : ""}
-                    </Text>
+                  <View style={s.rowInfo}>
+                    <Text style={s.rowLabel}>{t.label}</Text>
+                    <Text style={s.rowSub}>{entry.time} · {entry.date}</Text>
                   </View>
-                  <Text style={styles.rideValue}>R$ {ride.value}</Text>
-                  <View style={styles.rideActions}>
+                  <Text style={[s.rowAmount, { color: t.color }]}>R$ {entry.amount}</Text>
+                  <View style={s.rowActions}>
                     <Pressable
-                      style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-                      onPress={() => openEdit(ride)}
+                      style={({ pressed }) => [s.iconBtn, pressed && s.pressed]}
+                      onPress={() => openEdit(entry)}
                       hitSlop={8}
                     >
                       <Ionicons name="create-outline" size={18} color={YELLOW} />
                     </Pressable>
                     <Pressable
-                      style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-                      onPress={() => handleRemove(ride.id)}
+                      style={({ pressed }) => [s.iconBtn, pressed && s.pressed]}
+                      onPress={() => handleRemove(entry.id)}
                       hitSlop={8}
                     >
                       <Ionicons name="trash-outline" size={18} color="#EF4444" />
@@ -287,27 +267,29 @@ export default function GanhosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   content: { paddingHorizontal: 16, gap: 14 },
   pageTitle: { color: "#FFF", fontSize: 28, fontFamily: "Inter_700Bold", marginBottom: 4 },
 
-  totalCard: {
-    backgroundColor: YELLOW,
-    borderRadius: 32,
-    padding: 24,
-    overflow: "hidden",
-    gap: 6,
+  summaryCard: {
+    backgroundColor: YELLOW, borderRadius: 32, padding: 22,
+    overflow: "hidden", gap: 6,
   },
-  profitGlow: {
+  cardGlow: {
     position: "absolute", top: -30, right: -30,
     width: 140, height: 140, borderRadius: 70,
     backgroundColor: "rgba(255,255,255,0.25)",
   },
-  totalLabel: { color: "rgba(0,0,0,0.55)", fontSize: 13, fontFamily: "Inter_500Medium" },
-  totalAmount: { color: "#000", fontSize: 48, fontFamily: "Inter_700Bold", letterSpacing: -1 },
-  totalRow: { flexDirection: "row", gap: 14, marginTop: 10, flexWrap: "wrap" },
-  totalStat: { flexDirection: "row", alignItems: "center", gap: 5 },
-  totalStatText: { color: "rgba(0,0,0,0.6)", fontSize: 13, fontFamily: "Inter_500Medium" },
+  summaryLabel: { color: "rgba(0,0,0,0.55)", fontSize: 13, fontFamily: "Inter_500Medium" },
+  summaryAmount: { color: "#000", fontSize: 46, fontFamily: "Inter_700Bold", letterSpacing: -1 },
+  typeBadges: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
+  typeBadge: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    borderRadius: 12, borderWidth: 1,
+    paddingHorizontal: 10, paddingVertical: 6,
+  },
+  typeBadgeLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  typeBadgeVal: { fontSize: 12, fontFamily: "Inter_700Bold" },
 
   addBtn: {
     backgroundColor: YELLOW, borderRadius: 20, paddingVertical: 16,
@@ -319,22 +301,28 @@ const styles = StyleSheet.create({
     backgroundColor: CARD, borderRadius: 28,
     borderWidth: 1, borderColor: BORDER, padding: 20, gap: 14,
   },
-  formTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  formHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   closeBtn: { padding: 4 },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   cardTitle: { color: "#FFF", fontSize: 17, fontFamily: "Inter_700Bold" },
+  listHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   badge: { backgroundColor: YELLOW_DIM, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10 },
   badgeText: { color: YELLOW, fontSize: 13, fontFamily: "Inter_700Bold" },
 
   inputGroup: { gap: 6 },
-  inputRow: { flexDirection: "row", gap: 10 },
   inputLabel: { color: MUTED, fontSize: 12, fontFamily: "Inter_500Medium" },
   input: {
     backgroundColor: "rgba(0,0,0,0.3)", borderRadius: 14,
     borderWidth: 1, borderColor: BORDER,
-    paddingHorizontal: 14, paddingVertical: 12,
-    color: "#FFF", fontSize: 16, fontFamily: "Inter_500Medium",
+    paddingHorizontal: 14, paddingVertical: 13,
+    color: "#FFF", fontSize: 17, fontFamily: "Inter_500Medium",
   },
+  typeRow: { flexDirection: "row", gap: 8 },
+  typeBtn: {
+    flex: 1, backgroundColor: BORDER, borderRadius: 12,
+    borderWidth: 1, borderColor: "transparent",
+    paddingVertical: 10, alignItems: "center", gap: 4,
+  },
+  typeBtnLabel: { color: MUTED, fontSize: 10, fontFamily: "Inter_600SemiBold", textAlign: "center" },
   formActions: { flexDirection: "row", gap: 10 },
   cancelBtn: {
     flex: 1, borderRadius: 14, borderWidth: 1, borderColor: BORDER,
@@ -348,21 +336,18 @@ const styles = StyleSheet.create({
   saveBtnText: { color: "#000", fontSize: 14, fontFamily: "Inter_700Bold" },
   pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
 
-  rideRow: { flexDirection: "row", alignItems: "center", paddingVertical: 12, gap: 10 },
-  rideBorder: { borderBottomWidth: 1, borderBottomColor: BORDER },
-  rideRowHighlight: { backgroundColor: "rgba(250,204,21,0.05)", borderRadius: 12 },
-  rideIcon: {
-    width: 40, height: 40, borderRadius: 13,
-    backgroundColor: YELLOW_DIM, alignItems: "center", justifyContent: "center",
-  },
-  rideInfo: { flex: 1, gap: 3 },
-  rideTime: { color: "#FFF", fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  rideMeta: { color: MUTED, fontSize: 11, fontFamily: "Inter_400Regular" },
-  rideValue: { color: YELLOW, fontSize: 16, fontFamily: "Inter_700Bold" },
-  rideActions: { flexDirection: "row", gap: 4 },
+  row: { flexDirection: "row", alignItems: "center", paddingVertical: 12, gap: 10 },
+  rowBorder: { borderBottomWidth: 1, borderBottomColor: BORDER },
+  rowHighlight: { backgroundColor: "rgba(250,204,21,0.05)", borderRadius: 12 },
+  rowIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  rowInfo: { flex: 1, gap: 3 },
+  rowLabel: { color: "#FFF", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  rowSub: { color: MUTED, fontSize: 11, fontFamily: "Inter_400Regular" },
+  rowAmount: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  rowActions: { flexDirection: "row", gap: 4 },
   iconBtn: { padding: 6 },
 
-  emptyState: { alignItems: "center", paddingVertical: 32, gap: 8 },
-  emptyText: { color: MUTED, fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  emptySubText: { color: BORDER, fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
+  empty: { alignItems: "center", paddingVertical: 36, gap: 10 },
+  emptyTitle: { color: MUTED, fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  emptySub: { color: BORDER, fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
 });
