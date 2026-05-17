@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "scheme": "controlefinanceiro",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
 
     "android": {
       "package": "com.controlefinanceiro.app"
@@ -14,12 +13,6 @@
 
     "plugins": [
       "expo-router"
-    ],
-
-    "extra": {
-      "eas": {
-        "projectId": "6c633383-b0e0-4780-9eca-3a132c052410"
-      }
-    }
+    ]
   }
-} 
+}
