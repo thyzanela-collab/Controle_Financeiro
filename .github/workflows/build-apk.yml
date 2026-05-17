@@ -17,20 +17,14 @@ jobs:
         with:
           node-version: '18'
       
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
+      - name: Clean root lockfiles
+        run: |
+          rm -f pnpm-lock.yaml package-lock.json yarn.lock
       
-      - name: Navigate to mobile directory
-        working-directory: artifacts/mobile
-        run: pwd
-      
-      - name: Install dependencies for mobile app
+      - name: Install dependencies for mobile app with npm
         working-directory: artifacts/mobile
         run: |
-          rm -f pnpm-lock.yaml
-          pnpm install
+          npm install
       
       - name: Install EAS CLI
         run: npm install -g eas-cli
