@@ -17,15 +17,23 @@ jobs:
         with:
           node-version: '18'
       
-      - name: Install pnpm
-        run: npm install -g pnpm@9
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      
+      - name: Clean lockfiles
+        run: |
+          rm -f pnpm-lock.yaml package-lock.json yarn.lock
+      
+      - name: Install dependencies for mobile app with pnpm
+        working-directory: artifacts/mobile
+        run: pnpm install --no-frozen-lockfile
       
       - name: Install EAS CLI
-        run: npm install -g eas-cli
+        run: pnpm add -g eas-cli
       
-      - name: Install root dependencies
-        run: pnpm install
-      - name: Build APK
+      - name: Build APK with EAS
         working-directory: artifacts/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
