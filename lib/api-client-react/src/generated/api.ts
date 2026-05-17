@@ -5,13 +5,13 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query": "^5.90.21";
 import type {
   QueryFunction,
   QueryKey,
   UseQueryOptions,
   UseQueryResult,
-} from "@tanstack/react-query";
+} from "@tanstack/react-query": "^5.90.21";
 
 import type { HealthStatus } from "./api.schemas";
 
