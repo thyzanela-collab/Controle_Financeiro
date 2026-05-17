@@ -22,16 +22,14 @@ jobs:
         with:
           version: 8
       
-      - name: Clean lockfiles
-        run: |
-          rm -f pnpm-lock.yaml package-lock.json yarn.lock
-      
-      - name: Install dependencies for mobile app with pnpm
+      - name: Install dependencies only for mobile app
         working-directory: artifacts/mobile
-        run: pnpm install --no-frozen-lockfile
+        run: |
+          rm -f pnpm-lock.yaml
+          npm install
       
       - name: Install EAS CLI
-        run: pnpm add -g eas-cli
+        run: npm install -g eas-cli
       
       - name: Build APK with EAS
         working-directory: artifacts/mobile
