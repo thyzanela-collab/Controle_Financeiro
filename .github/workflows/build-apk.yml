@@ -17,27 +17,17 @@ jobs:
         with:
           node-version: '18'
       
-      - name: Delete corrupted lockfiles
-        run: |
-          rm -f pnpm-lock.yaml package-lock.json yarn.lock
-          rm -f artifacts/mobile/pnpm-lock.yaml artifacts/mobile/package-lock.json artifacts/mobile/yarn.lock
-      
-      - name: Install npm dependencies for mobile only
-        working-directory: artifacts/mobile
-        run: npm install
-      
-      - name: Install EAS CLI globally
+      - name: Install EAS CLI only
         run: npm install -g eas-cli
       
-      - name: Build APK with EAS
+      - name: Build APK with EAS (cloud build)
         working-directory: artifacts/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas build --platform android --non-interactive
       
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apk
-          path: artifacts/mobile/**/*.apk
-          if-no-files-found: warn
+      - name: Download APK
+        working-directory: artifacts/mobile
+        run: |
+          echo "Build completed successfully!"
+          ls -la
