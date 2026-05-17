@@ -1,0 +1,40 @@
+name: Build APK Android
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: npm install
+      
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+      
+      - name: Build APK
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas build --platform android --non-interactive
+      
+      - name: Download APK
+        run: |
+          # Aguarda o build completar e baixa o APK
+          eas build:list --limit 1 --platform android
+      
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: android-apk
+          path: '**.apk'
