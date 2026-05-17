@@ -18,24 +18,24 @@ jobs:
         with:
           node-version: '18'
 
- - name: Clean install
-  run: rm -rf node_modules pnpm-lock.yaml
-
       - name: Install pnpm
         run: npm install -g pnpm
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
+      - name: Clean install
+        run: rm -rf node_modules pnpm-lock.yaml
+
+      - name: Install dependencies (root)
+        run: pnpm install
+
       - name: Install mobile dependencies
         working-directory: artifacts/mobile
         run: pnpm install
 
-      - name: Build APK with EAS (cloud build)
+      - name: Build APK (EAS Cloud)
         working-directory: artifacts/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: npx eas-cli build --platform android --profile production --non-interactive
-
-      - name: Finish
-        run: echo "APK build started successfully!"
