@@ -3,9 +3,18 @@
     "name": "Controle Financeiro",
     "slug": "controle-financeiro",
     "version": "1.0.0",
+    "orientation": "portrait",
+
     "android": {
       "package": "com.controlefinanceiro.app"
     },
-    "plugins": ["expo-router"]
+
+    "plugins": ["expo-router"],
+
+    "extra": {
+      "eas": {
+        "projectId": "e03504dc-11b3-482a-81fd-2b4372eae9cc"
+      }
+    }
   }
 }
